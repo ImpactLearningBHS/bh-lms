@@ -12,8 +12,12 @@ export default function DashboardPage() {
   const [trainings, setTrainings] = useState([]);
   const [completions, setCompletions] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [showAddTraining, setShowAddTraining] = useState(false);
+  const [showAssignTraining, setShowAssignTraining] = useState(false);
   const [newTraining, setNewTraining] = useState({title: '', category: 'All Staff', recurrence: 'Annual', description: '', status: 'Active'});
+  const [newAssignment, setNewAssignment] = useState({training_id: '', organization_id: 'all'});
+  const [assignSuccess, setAssignSuccess] = useState('');
   const [snapshot, setSnapshot] = useState({
     totalOrgs: 0, activeOrgs: 0, totalUsers: 0,
     trainingsInLibrary: 0, trainingsAssigned: 0, completionRate: 0,
@@ -32,7 +36,7 @@ export default function DashboardPage() {
   };
 
   const fetchAll = async () => {
-    await Promise.all([fetchOrganizations(), fetchTrainings(), fetchCompletions(), fetchAllUsers()]);
+    await Promise.all([fetchOrganizations(), fetchTrainings(), fetchCompletions(), fetchAllUsers(), fetchAssignments()]);
   };
 
   const fetchOrganizations = async () => {
@@ -55,25 +59,68 @@ export default function DashboardPage() {
     if (data) setTrainings(data);
   };
 
+  const fetchAssignments = async () => {
+    const { data } = await supabase.from('training_assignments').select('*');
+    if (data) setAssignments(data);
+  };
+
+  const saveAssignment = async () => {
+    if (!newAssignment.training_id) return;
+
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 30);
+    const dueDateStr = dueDate.toISOString().split('T')[0];
+    const now = new Date().toISOString();
+
+    const targetOrgs = newAssignment.organization_id === 'all'
+      ? organizations
+      : organizations.filter(o => o.id === newAssignment.organization_id);
+
+    // Check for existing assignments to avoid duplicates
+    const inserts = targetOrgs
+      .filter(org => !assignments.some(
+        a => a.training_id === newAssignment.training_id && a.organization_id === org.id
+      ))
+      .map(org => ({
+        training_id: newAssignment.training_id,
+        organization_id: org.id,
+        due_date: dueDateStr,
+        status: 'Active',
+        assigned_at: now,
+      }));
+
+    if (inserts.length === 0) {
+      setAssignSuccess('This training is already assigned to the selected organization(s).');
+      setTimeout(() => setAssignSuccess(''), 3000);
+      return;
+    }
+
+    const { data, error } = await supabase.from('training_assignments').insert(inserts).select();
+    if (data) {
+      setAssignments([...assignments, ...data]);
+      const training = trainings.find(t => t.id === newAssignment.training_id);
+      const orgLabel = newAssignment.organization_id === 'all' ? 'all organizations' : targetOrgs[0]?.name;
+      setAssignSuccess(`✅ "${training?.title}" assigned to ${orgLabel} — due ${dueDateStr}`);
+      setTimeout(() => {
+        setAssignSuccess('');
+        setShowAssignTraining(false);
+        setNewAssignment({training_id: '', organization_id: 'all'});
+      }, 3000);
+    }
+  };
+
   useEffect(() => {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const activeOrgIds = new Set(
-      completions.filter(c => new Date(c.completed_date) >= thirtyDaysAgo)
-        .map(c => allUsers.find(u => u.id === c.user_id)?.organization_id)
-        .filter(Boolean)
-    );
-    const totalAssigned = trainings.length * organizations.length;
+    const totalAssigned = assignments.length;
     const completionRate = totalAssigned > 0 ? Math.round((completions.length / totalAssigned) * 100) : 0;
     setSnapshot({
       totalOrgs: organizations.length,
-      activeOrgs: activeOrgIds.size,
+      activeOrgs: organizations.filter(o => getOrgStatus(o) === 'Active').length,
       totalUsers: allUsers.length,
       trainingsInLibrary: trainings.length,
-      trainingsAssigned: completions.length,
+      trainingsAssigned: totalAssigned,
       completionRate,
     });
-  }, [organizations, allUsers, completions, trainings]);
+  }, [organizations, allUsers, completions, trainings, assignments]);
 
   const getOrgStatus = (org) => {
     const orgUsers = allUsers.filter(u => u.organization_id === org.id);
@@ -96,6 +143,8 @@ export default function DashboardPage() {
     const days = Math.floor((new Date() - new Date(latest.completed_date)) / 86400000);
     return days === 0 ? 'Today' : `${days} days ago`;
   };
+
+  const getOrgAssignments = (orgId) => assignments.filter(a => a.organization_id === orgId).length;
 
   const statusStyle = (status) => {
     if (status === 'Active') return { bg: '#DCFCE7', color: '#16A34A' };
@@ -134,6 +183,7 @@ export default function DashboardPage() {
     { id: 'dashboard', label: 'Admin Dashboard' },
     { id: 'organizations', label: 'All Organizations' },
     { id: 'trainings', label: 'Training Library' },
+    { id: 'assignments', label: 'Assignments' },
     { id: 'completions', label: 'Completions' },
     { id: 'settings', label: 'Settings' },
   ];
@@ -209,10 +259,11 @@ export default function DashboardPage() {
 
               {/* Quick Actions */}
               <div className="flex gap-3 mb-8 flex-wrap">
-              {[
-  { label: '+ Create Organization', action: () => { setActivePage('organizations'); setShowAddOrg(true); } },
-  { label: '+ Add Training', action: () => { setActivePage('trainings'); setShowAddTraining(true); } },
-].map(btn => (
+                {[
+                  { label: '+ Create Organization', action: () => { setActivePage('organizations'); setShowAddOrg(true); } },
+                  { label: '+ Add Training', action: () => { setActivePage('trainings'); setShowAddTraining(true); } },
+                  { label: '⚡ Assign Training', action: () => setShowAssignTraining(true) },
+                ].map(btn => (
                   <button key={btn.label} onClick={btn.action}
                     className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
                     style={{backgroundColor: '#0D9488'}}>
@@ -221,16 +272,83 @@ export default function DashboardPage() {
                 ))}
               </div>
 
+              {/* Assign Training Modal */}
+              {showAssignTraining && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor: 'rgba(0,0,0,0.4)'}}>
+                  <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+                    <h2 className="text-lg font-bold mb-1" style={{color: '#0D2035'}}>⚡ Assign Training</h2>
+                    <p className="text-sm mb-6" style={{color: '#6B7280'}}>Due date auto-set to 30 days. Annual recurrence applies after completion.</p>
+
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Select Training</label>
+                        <select
+                          value={newAssignment.training_id}
+                          onChange={(e) => setNewAssignment({...newAssignment, training_id: e.target.value})}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+                          <option value="">-- Choose a training --</option>
+                          {trainings.map(t => (
+                            <option key={t.id} value={t.id}>{t.title}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Assign To</label>
+                        <select
+                          value={newAssignment.organization_id}
+                          onChange={(e) => setNewAssignment({...newAssignment, organization_id: e.target.value})}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+                          <option value="all">All Organizations</option>
+                          {organizations.map(o => (
+                            <option key={o.id} value={o.id}>{o.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="rounded-lg p-3" style={{backgroundColor: '#F0FDF4'}}>
+                        <p className="text-xs font-semibold" style={{color: '#16A34A'}}>
+                          📅 Due date will be set to {(() => {
+                            const d = new Date();
+                            d.setDate(d.getDate() + 30);
+                            return d.toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
+                          })()}
+                        </p>
+                      </div>
+
+                      {assignSuccess && (
+                        <div className="rounded-lg p-3" style={{backgroundColor: '#F0FDF4', border: '1px solid #86EFAC'}}>
+                          <p className="text-sm font-medium" style={{color: '#16A34A'}}>{assignSuccess}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3 mt-6">
+                      <button
+                        onClick={saveAssignment}
+                        disabled={!newAssignment.training_id}
+                        className="flex-1 py-2 rounded-lg text-white font-semibold text-sm"
+                        style={{backgroundColor: newAssignment.training_id ? '#0D9488' : '#D1D5DB',
+                          cursor: newAssignment.training_id ? 'pointer' : 'not-allowed'}}>
+                        Assign Training
+                      </button>
+                      <button onClick={() => { setShowAssignTraining(false); setNewAssignment({training_id: '', organization_id: 'all'}); setAssignSuccess(''); }}
+                        className="flex-1 py-2 rounded-lg text-gray-500 bg-gray-100 font-semibold text-sm">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Attention Needed */}
               {(() => {
                 const notSetUp = organizations.filter(o => getOrgStatus(o) === 'Not Set Up');
-                const inactive = organizations.filter(o => getOrgStatus(o) === 'Inactive');
-                if (!notSetUp.length && !inactive.length) return null;
+                if (!notSetUp.length) return null;
                 return (
                   <div className="rounded-xl border border-orange-200 bg-orange-50 p-5 mb-8">
                     <p className="text-sm font-bold mb-3" style={{color: '#92400E'}}>🚨 Attention Needed</p>
                     <ul className="space-y-1">
-                      {inactive.length > 0 && <li className="text-sm text-orange-700">• {inactive.length} organization{inactive.length > 1 ? 's' : ''} inactive (no activity in 30 days)</li>}
                       {notSetUp.length > 0 && <li className="text-sm text-orange-700">• {notSetUp.length} organization{notSetUp.length > 1 ? 's' : ''} not fully set up (no users added)</li>}
                     </ul>
                   </div>
@@ -242,10 +360,10 @@ export default function DashboardPage() {
               <div className="grid grid-cols-3 gap-4 mb-8">
                 {[
                   { label: 'Total Organizations', value: snapshot.totalOrgs },
-                  { label: 'Active Orgs (30 days)', value: snapshot.activeOrgs },
+                  { label: 'Active Orgs', value: snapshot.activeOrgs },
                   { label: 'Total Users', value: snapshot.totalUsers },
                   { label: 'Trainings in Library', value: snapshot.trainingsInLibrary },
-                  { label: 'Trainings Completed', value: snapshot.trainingsAssigned },
+                  { label: 'Trainings Assigned', value: snapshot.trainingsAssigned },
                   { label: 'Completion Rate', value: `${snapshot.completionRate}%` },
                 ].map(stat => (
                   <div key={stat.label} className="bg-white rounded-xl shadow p-5">
@@ -268,6 +386,7 @@ export default function DashboardPage() {
                     <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
                       <th className="text-left pb-3">Organization</th>
                       <th className="text-left pb-3">Users</th>
+                      <th className="text-left pb-3">Assigned</th>
                       <th className="text-left pb-3">Completions</th>
                       <th className="text-left pb-3">Last Activity</th>
                       <th className="text-left pb-3">Status</th>
@@ -276,7 +395,7 @@ export default function DashboardPage() {
                   </thead>
                   <tbody>
                     {organizations.length === 0 ? (
-                      <tr><td colSpan="6" className="py-6 text-center" style={{color: '#6B7280'}}>No organizations yet.</td></tr>
+                      <tr><td colSpan="7" className="py-6 text-center" style={{color: '#6B7280'}}>No organizations yet.</td></tr>
                     ) : organizations.map(org => {
                       const status = getOrgStatus(org);
                       const s = statusStyle(status);
@@ -284,6 +403,7 @@ export default function DashboardPage() {
                         <tr key={org.id} className="border-b border-gray-50">
                           <td className="py-3 font-medium" style={{color: '#0D9488'}}>{org.name}</td>
                           <td className="py-3 text-gray-500">{getOrgUserCount(org.id)}</td>
+                          <td className="py-3 text-gray-500">{getOrgAssignments(org.id)}</td>
                           <td className="py-3 text-gray-500">{getOrgCompletions(org.id)}</td>
                           <td className="py-3 text-gray-500">{getLastActivity(org.id)}</td>
                           <td className="py-3">
@@ -513,6 +633,53 @@ export default function DashboardPage() {
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── ASSIGNMENTS ── */}
+          {activePage === 'assignments' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h1 className="text-2xl font-bold" style={{color: '#0D2035'}}>Assignments</h1>
+                <button onClick={() => setShowAssignTraining(true)}
+                  className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
+                  style={{backgroundColor: '#0D9488'}}>⚡ Assign Training</button>
+              </div>
+              <div className="bg-white rounded-xl shadow p-6">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
+                      <th className="text-left pb-3">Training</th>
+                      <th className="text-left pb-3">Organization</th>
+                      <th className="text-left pb-3">Due Date</th>
+                      <th className="text-left pb-3">Assigned At</th>
+                      <th className="text-left pb-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assignments.length === 0 ? (
+                      <tr><td colSpan="5" className="py-6 text-center" style={{color: '#6B7280'}}>No assignments yet. Use ⚡ Assign Training to get started.</td></tr>
+                    ) : assignments.map(a => {
+                      const training = trainings.find(t => t.id === a.training_id);
+                      const org = organizations.find(o => o.id === a.organization_id);
+                      return (
+                        <tr key={a.id} className="border-b border-gray-50">
+                          <td className="py-3 font-medium" style={{color: '#0D9488'}}>{training?.title || '—'}</td>
+                          <td className="py-3 text-gray-500">{org?.name || '—'}</td>
+                          <td className="py-3 text-gray-500">{a.due_date}</td>
+                          <td className="py-3 text-gray-500">{a.assigned_at ? new Date(a.assigned_at).toLocaleDateString() : '—'}</td>
+                          <td className="py-3">
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold"
+                              style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}>
+                              {a.status || 'Active'}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
