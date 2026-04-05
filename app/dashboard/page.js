@@ -209,12 +209,10 @@ export default function DashboardPage() {
 
               {/* Quick Actions */}
               <div className="flex gap-3 mb-8 flex-wrap">
-                {[
-                  { label: '+ Create Organization', action: () => { setActivePage('organizations'); setShowAddOrg(true); } },
-                  { label: '+ Add Training', action: () => { setActivePage('trainings'); setShowAddTraining(true); } },
-                  { label: '⚡ Assign Training', action: () => {} },
-                  { label: '⚙ Manage Categories', action: () => setActivePage('settings') },
-                ].map(btn => (
+              {[
+  { label: '+ Create Organization', action: () => { setActivePage('organizations'); setShowAddOrg(true); } },
+  { label: '+ Add Training', action: () => { setActivePage('trainings'); setShowAddTraining(true); } },
+].map(btn => (
                   <button key={btn.label} onClick={btn.action}
                     className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
                     style={{backgroundColor: '#0D9488'}}>
