@@ -79,7 +79,6 @@ export default function BranchPage() {
       .from('users')
       .select('id')
       .eq('organization_id', orgId);
-
     if (orgStaff) {
       const staffIds = orgStaff.map(s => s.id);
       const { data } = await supabase
@@ -139,54 +138,184 @@ export default function BranchPage() {
         <title>Certificate of Completion</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Georgia, serif; background: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 40px; }
-          .certificate { border: 8px solid #0D2035; border-radius: 16px; padding: 60px; max-width: 750px; width: 100%; text-align: center; position: relative; }
-          .inner-border { border: 2px solid #0D9488; border-radius: 10px; padding: 50px 40px; }
-          .logo-area { margin-bottom: 24px; }
-          .logo-area img { height: 48px; object-fit: contain; }
-          .subtitle { font-family: Arial, sans-serif; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: #6B7280; margin-bottom: 16px; }
-          h1 { font-size: 36px; color: #0D2035; margin-bottom: 8px; }
-          .divider { width: 80px; height: 3px; background: #0D9488; margin: 20px auto; border-radius: 2px; }
-          .presented-to { font-family: Arial, sans-serif; font-size: 13px; color: #6B7280; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
-          .staff-name { font-size: 32px; color: #0D2035; font-style: italic; margin-bottom: 20px; }
-          .training-label { font-family: Arial, sans-serif; font-size: 13px; color: #6B7280; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
-          .training-title { font-size: 20px; color: #0D9488; font-weight: bold; margin-bottom: 32px; font-family: Arial, sans-serif; }
-          .details { display: flex; justify-content: space-between; margin-top: 40px; padding-top: 24px; border-top: 1px solid #E5E7EB; font-family: Arial, sans-serif; }
-          .detail-block { text-align: center; flex: 1; }
-          .detail-label { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #6B7280; margin-bottom: 4px; }
-          .detail-value { font-size: 13px; color: #0D2035; font-weight: bold; }
-          .watermark { position: absolute; bottom: 20px; right: 30px; font-family: Arial, sans-serif; font-size: 9px; color: #D1D5DB; letter-spacing: 1px; }
-          @media print { body { padding: 0; } }
+          body {
+            font-family: Georgia, serif;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 30px;
+          }
+          .certificate {
+            border: 8px solid #0D2035;
+            border-radius: 16px;
+            padding: 40px 56px;
+            width: 100%;
+            max-width: 960px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            background: white;
+          }
+          .bg-shapes {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+          }
+          .inner-box {
+            border: 2px solid #0D9488;
+            border-radius: 10px;
+            padding: 36px 48px;
+            position: relative;
+            background: rgba(250,250,247,0.75);
+          }
+          .logo-area {
+            margin-bottom: 14px;
+          }
+          .logo-area img {
+            height: 44px;
+            object-fit: contain;
+          }
+          .subtitle {
+            font-family: Arial, sans-serif;
+            font-size: 10px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: #6B7280;
+            margin-bottom: 10px;
+          }
+          h1 {
+            font-size: 30px;
+            color: #0D2035;
+            margin-bottom: 4px;
+          }
+          .divider {
+            width: 60px;
+            height: 3px;
+            background: #0D9488;
+            margin: 12px auto;
+            border-radius: 2px;
+          }
+          .main-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 48px;
+            margin: 18px 0;
+          }
+          .separator {
+            width: 1px;
+            height: 60px;
+            background: #0D9488;
+            opacity: 0.4;
+          }
+          .label {
+            font-family: Arial, sans-serif;
+            font-size: 10px;
+            color: #6B7280;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+          }
+          .staff-name {
+            font-size: 28px;
+            color: #0D2035;
+            font-style: italic;
+          }
+          .training-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #0D9488;
+            font-family: Arial, sans-serif;
+          }
+          .details {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(13,148,136,0.3);
+            font-family: Arial, sans-serif;
+          }
+          .detail-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #6B7280;
+            margin-bottom: 4px;
+          }
+          .detail-value {
+            font-size: 13px;
+            color: #0D2035;
+            font-weight: bold;
+          }
+          .watermark {
+            position: absolute;
+            bottom: 14px;
+            right: 24px;
+            font-family: Arial, sans-serif;
+            font-size: 9px;
+            color: #D1D5DB;
+            letter-spacing: 1px;
+          }
+          @media print {
+            body { padding: 0; }
+            .certificate { border-width: 6px; }
+          }
         </style>
       </head>
       <body>
         <div class="certificate">
-          <div class="inner-border">
+          <svg class="bg-shapes" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="5%" cy="20%" r="90" fill="#0D9488" opacity="0.2"/>
+            <circle cx="95%" cy="80%" r="110" fill="#0D2035" opacity="0.15"/>
+            <circle cx="92%" cy="10%" r="60" fill="#0D9488" opacity="0.18"/>
+            <circle cx="8%" cy="90%" r="70" fill="#0D2035" opacity="0.12"/>
+            <rect x="80%" y="20%" width="90" height="90" rx="12" fill="#0D9488" opacity="0.15" transform="rotate(25 85 40)"/>
+            <rect x="1%" y="40%" width="70" height="70" rx="12" fill="#0D2035" opacity="0.12" transform="rotate(-20 30 70)"/>
+            <circle cx="93%" cy="45%" r="25" fill="#0D9488" opacity="0.18"/>
+            <circle cx="7%" cy="55%" r="20" fill="#0D9488" opacity="0.15"/>
+            <circle cx="50%" cy="98%" r="50" fill="#0D2035" opacity="0.06"/>
+          </svg>
+
+          <div class="inner-box">
             <div class="logo-area">
               <img src="${window.location.origin}/ImpactWorkforce.png" alt="Impact Workforce" />
             </div>
             <p class="subtitle">Certificate of Completion</p>
             <h1>Achievement Award</h1>
             <div class="divider"></div>
-            <p class="presented-to">This certifies that</p>
-            <p class="staff-name">${completion.staff_name}</p>
-            <p class="training-label">Has successfully completed</p>
-            <p class="training-title">${completion.training_title}</p>
+
+            <div class="main-content">
+              <div>
+                <p class="label">This certifies that</p>
+                <p class="staff-name">${completion.staff_name}</p>
+              </div>
+              <div class="separator"></div>
+              <div>
+                <p class="label">Has successfully completed</p>
+                <p class="training-title">${completion.training_title}</p>
+              </div>
+            </div>
+
             <div class="details">
-              <div class="detail-block">
+              <div>
                 <p class="detail-label">Organization</p>
                 <p class="detail-value">${orgName}</p>
               </div>
-              <div class="detail-block">
+              <div>
                 <p class="detail-label">Completion Date</p>
                 <p class="detail-value">${completionDate}</p>
               </div>
-              <div class="detail-block">
+              <div>
                 <p class="detail-label">Valid Through</p>
                 <p class="detail-value">${expiryDate}</p>
               </div>
             </div>
           </div>
+
           <p class="watermark">Impact Workforce Systems LLC © ${new Date().getFullYear()}</p>
         </div>
         <script>window.onload = () => window.print();</script>
@@ -382,7 +511,6 @@ export default function BranchPage() {
             <div>
               <h1 className="text-2xl font-bold mb-2" style={{color: '#0D2035'}}>Trainings</h1>
               <p className="text-sm mb-6" style={{color: '#6B7280'}}>Trainings assigned to your organization</p>
-
               <div className="bg-white rounded-xl shadow p-6">
                 <table className="w-full text-sm">
                   <thead>
@@ -448,7 +576,6 @@ export default function BranchPage() {
             <div>
               <h1 className="text-2xl font-bold mb-2" style={{color: '#0D2035'}}>Completions</h1>
               <p className="text-sm mb-6" style={{color: '#6B7280'}}>Track training completions for your staff</p>
-
               <div className="bg-white rounded-xl shadow p-6">
                 <table className="w-full text-sm">
                   <thead>
