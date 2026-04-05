@@ -78,13 +78,7 @@ export default function DashboardPage() {
   const getOrgStatus = (org) => {
     const orgUsers = allUsers.filter(u => u.organization_id === org.id);
     if (orgUsers.length === 0) return 'Not Set Up';
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const hasActivity = completions.some(c => {
-      const user = allUsers.find(u => u.id === c.user_id);
-      return user?.organization_id === org.id && new Date(c.completed_date) >= thirtyDaysAgo;
-    });
-    return hasActivity ? 'Active' : 'Inactive';
+    return 'Active';
   };
 
   const getOrgUserCount = (orgId) => allUsers.filter(u => u.organization_id === orgId).length;
