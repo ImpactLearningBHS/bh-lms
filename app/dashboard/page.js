@@ -66,41 +66,50 @@ export default function DashboardPage() {
 
   const saveAssignment = async () => {
     if (!newAssignment.training_id) return;
-
+  
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
     const dueDateStr = dueDate.toISOString().split('T')[0];
     const now = new Date().toISOString();
-
+  
     const targetOrgs = newAssignment.organization_id === 'all'
       ? organizations
       : organizations.filter(o => o.id === newAssignment.organization_id);
-
-    // Check for existing assignments to avoid duplicates
-    const inserts = targetOrgs
-      .filter(org => !assignments.some(
-        a => a.training_id === newAssignment.training_id && a.organization_id === org.id
-      ))
-      .map(org => ({
-        training_id: newAssignment.training_id,
-        organization_id: org.id,
-        due_date: dueDateStr,
-        status: 'Active',
-        assigned_at: now,
-      }));
-
+  
+    const targetTrainings = newAssignment.training_id === 'all'
+      ? trainings
+      : trainings.filter(t => t.id === newAssignment.training_id);
+  
+    const inserts = [];
+    for (const org of targetOrgs) {
+      for (const training of targetTrainings) {
+        const alreadyAssigned = assignments.some(
+          a => a.training_id === training.id && a.organization_id === org.id
+        );
+        if (!alreadyAssigned) {
+          inserts.push({
+            training_id: training.id,
+            organization_id: org.id,
+            due_date: dueDateStr,
+            status: 'Active',
+            assigned_at: now,
+          });
+        }
+      }
+    }
+  
     if (inserts.length === 0) {
-      setAssignSuccess('This training is already assigned to the selected organization(s).');
+      setAssignSuccess('All selected trainings are already assigned.');
       setTimeout(() => setAssignSuccess(''), 3000);
       return;
     }
-
+  
     const { data, error } = await supabase.from('training_assignments').insert(inserts).select();
     if (data) {
       setAssignments([...assignments, ...data]);
-      const training = trainings.find(t => t.id === newAssignment.training_id);
+      const trainingLabel = newAssignment.training_id === 'all' ? 'All Trainings' : trainings.find(t => t.id === newAssignment.training_id)?.title;
       const orgLabel = newAssignment.organization_id === 'all' ? 'all organizations' : targetOrgs[0]?.name;
-      setAssignSuccess(`✅ "${training?.title}" assigned to ${orgLabel} — due ${dueDateStr}`);
+      setAssignSuccess(`✅ "${trainingLabel}" assigned to ${orgLabel} — due ${dueDateStr}`);
       setTimeout(() => {
         setAssignSuccess('');
         setShowAssignTraining(false);
@@ -108,7 +117,6 @@ export default function DashboardPage() {
       }, 3000);
     }
   };
-
   useEffect(() => {
     const totalAssigned = assignments.length;
     const completionRate = totalAssigned > 0 ? Math.round((completions.length / totalAssigned) * 100) : 0;
@@ -280,18 +288,19 @@ export default function DashboardPage() {
                     <p className="text-sm mb-6" style={{color: '#6B7280'}}>Due date auto-set to 30 days. Annual recurrence applies after completion.</p>
 
                     <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Select Training</label>
-                        <select
-                          value={newAssignment.training_id}
-                          onChange={(e) => setNewAssignment({...newAssignment, training_id: e.target.value})}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
-                          <option value="">-- Choose a training --</option>
-                          {trainings.map(t => (
-                            <option key={t.id} value={t.id}>{t.title}</option>
-                          ))}
-                        </select>
-                      </div>
+                    <div>
+  <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Select Training</label>
+  <select
+    value={newAssignment.training_id}
+    onChange={(e) => setNewAssignment({...newAssignment, training_id: e.target.value})}
+    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+    <option value="">-- Choose a training --</option>
+    <option value="all">⚡ All Trainings</option>
+    {trainings.map(t => (
+      <option key={t.id} value={t.id}>{t.title}</option>
+    ))}
+  </select>
+</div>
 
                       <div>
                         <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Assign To</label>
