@@ -45,13 +45,21 @@ export default function QuizPage() {
     if (finalScore === 100) {
       const { data: { user } } = await supabase.auth.getUser();
       const today = new Date().toISOString().split('T')[0];
+    
+      // Look up the database user to get the correct ID
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('id, full_name')
+        .eq('auth_id', user.id)
+        .single();
+    
       const { data: insertData, error: insertError } = await supabase.from('training_completions').insert([{
         training_id: training.id,
-        user_id: user.id,
+        user_id: dbUser?.id || user.id,
         training_title: training.title,
         completed_date: today,
         completed_at: new Date().toISOString(),
-        staff_name: user.email
+        staff_name: dbUser?.full_name || user.email
       }]).select();
       console.log('Completion insert:', insertData, insertError);
 

@@ -337,7 +337,9 @@ export default function BranchPage() {
                       </tr>
                     ) : (
                       getAssignedTrainingsForRole(currentUser?.role || 'Other').map(training => {
-                        const isCompleted = completions.some(c => c.training_id === training.id);
+                        const isCompleted = completions.some(c => 
+                          c.training_id === training.id && c.user_id === currentUser?.id
+                        );
                         const assignment = assignments.find(a => a.training_id === training.id);
                         return (
                           <tr key={training.id} className="border-b border-gray-50">
