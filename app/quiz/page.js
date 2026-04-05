@@ -79,29 +79,32 @@ export default function QuizPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#FDF6F0'}}>
-      <p className="text-gray-400">Loading quiz...</p>
+    <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#FFFFFF'}}>
+      <p style={{color: '#6B7280'}}>Loading quiz...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen" style={{backgroundColor: '#FDF6F0'}}>
-      <div className="max-w-3xl mx-auto p-8">
+    <div className="min-h-screen" style={{backgroundColor: '#F9FAFB'}}>
 
-        <div className="flex items-center justify-between mb-8">
-          <img src="/ImpactLearningTransparent" alt="Impact Workforce" className="h-16" />
+      {/* Header */}
+      <div style={{backgroundColor: '#0D2035'}}>
+        <div className="max-w-3xl mx-auto px-8 py-4 flex items-center justify-between">
+          <img src="/ImpactWorkforce.png" alt="Impact Workforce" className="h-10" />
           <button
             onClick={() => window.location.href = '/branch'}
             className="text-sm font-medium px-4 py-2 rounded-lg text-white"
-            style={{backgroundColor: '#6B2737'}}
+            style={{backgroundColor: '#0D9488'}}
           >
             Back to Dashboard
           </button>
         </div>
+      </div>
 
+      <div className="max-w-3xl mx-auto p-8">
         <div className="bg-white rounded-xl shadow p-8">
-          <h1 className="text-2xl font-bold mb-2" style={{color: '#6B2737'}}>{training?.title}</h1>
-          <p className="text-gray-400 text-sm mb-8">Answer all questions correctly to complete this training.</p>
+          <h1 className="text-2xl font-bold mb-2" style={{color: '#0D2035'}}>{training?.title}</h1>
+          <p className="text-sm mb-8" style={{color: '#6B7280'}}>Answer all questions correctly to complete this training.</p>
 
           {!submitted ? (
             <div>
@@ -116,8 +119,8 @@ export default function QuizPage() {
                         key={answer.id}
                         className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors"
                         style={{
-                          borderColor: answers[q.id] === answer.id ? '#6B2737' : '#E5E7EB',
-                          backgroundColor: answers[q.id] === answer.id ? '#FDF0F2' : 'white'
+                          borderColor: answers[q.id] === answer.id ? '#0D9488' : '#E5E7EB',
+                          backgroundColor: answers[q.id] === answer.id ? 'rgba(13,148,136,0.05)' : 'white'
                         }}
                       >
                         <input
@@ -126,7 +129,7 @@ export default function QuizPage() {
                           value={answer.id}
                           checked={answers[q.id] === answer.id}
                           onChange={() => handleAnswer(q.id, answer.id)}
-                          className="accent-red-800"
+                          style={{accentColor: '#0D9488'}}
                         />
                         <span className="text-sm text-gray-700">{answer.answer_text}</span>
                       </label>
@@ -140,7 +143,7 @@ export default function QuizPage() {
                 disabled={Object.keys(answers).length !== questions.length}
                 className="w-full py-3 rounded-lg text-white font-semibold text-sm"
                 style={{
-                  backgroundColor: Object.keys(answers).length !== questions.length ? '#D1D5DB' : '#22C55E',
+                  backgroundColor: Object.keys(answers).length !== questions.length ? '#D1D5DB' : '#0D9488',
                   cursor: Object.keys(answers).length !== questions.length ? 'not-allowed' : 'pointer'
                 }}
               >
@@ -152,12 +155,12 @@ export default function QuizPage() {
               {score === 100 ? (
                 <div>
                   <div className="text-6xl mb-4">🎉</div>
-                  <h2 className="text-2xl font-bold mb-2" style={{color: '#22C55E'}}>Congratulations!</h2>
+                  <h2 className="text-2xl font-bold mb-2" style={{color: '#0D9488'}}>Congratulations!</h2>
                   <p className="text-gray-500 mb-2">You scored {score}% and completed this training!</p>
                   <button
                     onClick={() => window.location.href = '/branch'}
                     className="mt-6 px-6 py-3 rounded-lg text-white font-semibold"
-                    style={{backgroundColor: '#22C55E'}}
+                    style={{backgroundColor: '#0D9488'}}
                   >
                     Back to Dashboard
                   </button>
@@ -167,11 +170,11 @@ export default function QuizPage() {
                   <div className="text-6xl mb-4">❌</div>
                   <h2 className="text-2xl font-bold mb-2 text-red-500">Not Quite!</h2>
                   <p className="text-gray-500 mb-2">You scored {score}%. You need 100% to complete this training.</p>
-                  <p className="text-gray-400 text-sm mb-6">Please review the material and try again.</p>
+                  <p className="text-sm mb-6" style={{color: '#6B7280'}}>Please review the material and try again.</p>
                   <button
                     onClick={handleRetake}
                     className="mt-2 px-6 py-3 rounded-lg text-white font-semibold"
-                    style={{backgroundColor: '#6B2737'}}
+                    style={{backgroundColor: '#0D2035'}}
                   >
                     Retake Quiz
                   </button>
