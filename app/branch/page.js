@@ -40,7 +40,6 @@ export default function BranchPage() {
       if (data) {
         setCurrentUser(data);
         setOrgName(data.organizations?.name || 'Branch Admin');
-        // Now fetch everything else with org context
         fetchStaff(data.organization_id);
         fetchAssignments(data.organization_id);
         fetchTrainings();
@@ -64,7 +63,6 @@ export default function BranchPage() {
     if (data) setTrainings(data);
   };
 
-  // Fetch only assignments for this org
   const fetchAssignments = async (orgId) => {
     if (!orgId) return;
     const { data } = await supabase
@@ -92,7 +90,6 @@ export default function BranchPage() {
     }
   };
 
-  // Get only trainings assigned to this org, filtered by role
   const getAssignedTrainingsForRole = (role) => {
     const assignedTrainingIds = assignments.map(a => a.training_id);
     const assignedTrainings = trainings.filter(t => assignedTrainingIds.includes(t.id));
@@ -129,6 +126,74 @@ export default function BranchPage() {
     } else {
       alert('Error creating user: ' + result.error);
     }
+  };
+
+  const printCertificate = (completion) => {
+    const win = window.open('', '_blank');
+    const completionDate = new Date(completion.completed_date).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
+    const expiryDate = new Date(new Date(completion.completed_date).setFullYear(new Date(completion.completed_date).getFullYear() + 1)).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Certificate of Completion</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: Georgia, serif; background: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 40px; }
+          .certificate { border: 8px solid #0D2035; border-radius: 16px; padding: 60px; max-width: 750px; width: 100%; text-align: center; position: relative; }
+          .inner-border { border: 2px solid #0D9488; border-radius: 10px; padding: 50px 40px; }
+          .logo-area { margin-bottom: 24px; }
+          .logo-area img { height: 48px; object-fit: contain; }
+          .subtitle { font-family: Arial, sans-serif; font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: #6B7280; margin-bottom: 16px; }
+          h1 { font-size: 36px; color: #0D2035; margin-bottom: 8px; }
+          .divider { width: 80px; height: 3px; background: #0D9488; margin: 20px auto; border-radius: 2px; }
+          .presented-to { font-family: Arial, sans-serif; font-size: 13px; color: #6B7280; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+          .staff-name { font-size: 32px; color: #0D2035; font-style: italic; margin-bottom: 20px; }
+          .training-label { font-family: Arial, sans-serif; font-size: 13px; color: #6B7280; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+          .training-title { font-size: 20px; color: #0D9488; font-weight: bold; margin-bottom: 32px; font-family: Arial, sans-serif; }
+          .details { display: flex; justify-content: space-between; margin-top: 40px; padding-top: 24px; border-top: 1px solid #E5E7EB; font-family: Arial, sans-serif; }
+          .detail-block { text-align: center; flex: 1; }
+          .detail-label { font-size: 10px; text-transform: uppercase; letter-spacing: 2px; color: #6B7280; margin-bottom: 4px; }
+          .detail-value { font-size: 13px; color: #0D2035; font-weight: bold; }
+          .watermark { position: absolute; bottom: 20px; right: 30px; font-family: Arial, sans-serif; font-size: 9px; color: #D1D5DB; letter-spacing: 1px; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <div class="certificate">
+          <div class="inner-border">
+            <div class="logo-area">
+              <img src="${window.location.origin}/ImpactWorkforce.png" alt="Impact Workforce" />
+            </div>
+            <p class="subtitle">Certificate of Completion</p>
+            <h1>Achievement Award</h1>
+            <div class="divider"></div>
+            <p class="presented-to">This certifies that</p>
+            <p class="staff-name">${completion.staff_name}</p>
+            <p class="training-label">Has successfully completed</p>
+            <p class="training-title">${completion.training_title}</p>
+            <div class="details">
+              <div class="detail-block">
+                <p class="detail-label">Organization</p>
+                <p class="detail-value">${orgName}</p>
+              </div>
+              <div class="detail-block">
+                <p class="detail-label">Completion Date</p>
+                <p class="detail-value">${completionDate}</p>
+              </div>
+              <div class="detail-block">
+                <p class="detail-label">Valid Through</p>
+                <p class="detail-value">${expiryDate}</p>
+              </div>
+            </div>
+          </div>
+          <p class="watermark">Impact Workforce Systems LLC © ${new Date().getFullYear()}</p>
+        </div>
+        <script>window.onload = () => window.print();</script>
+      </body>
+      </html>
+    `);
+    win.document.close();
   };
 
   const navItems = [
@@ -337,7 +402,7 @@ export default function BranchPage() {
                       </tr>
                     ) : (
                       getAssignedTrainingsForRole(currentUser?.role || 'Other').map(training => {
-                        const isCompleted = completions.some(c => 
+                        const isCompleted = completions.some(c =>
                           c.training_id === training.id && c.user_id === currentUser?.id
                         );
                         const assignment = assignments.find(a => a.training_id === training.id);
@@ -392,11 +457,12 @@ export default function BranchPage() {
                       <th className="text-left pb-3">Training</th>
                       <th className="text-left pb-3">Completed Date</th>
                       <th className="text-left pb-3">Status</th>
+                      <th className="text-left pb-3">Certificate</th>
                     </tr>
                   </thead>
                   <tbody>
                     {completions.length === 0 ? (
-                      <tr><td colSpan="4" className="py-6 text-center" style={{color: '#6B7280'}}>No completions recorded yet.</td></tr>
+                      <tr><td colSpan="5" className="py-6 text-center" style={{color: '#6B7280'}}>No completions recorded yet.</td></tr>
                     ) : completions.map(completion => (
                       <tr key={completion.id} className="border-b border-gray-50">
                         <td className="py-3 font-medium" style={{color: '#0D9488'}}>{completion.staff_name}</td>
@@ -407,6 +473,14 @@ export default function BranchPage() {
                             style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}>
                             Completed
                           </span>
+                        </td>
+                        <td className="py-3">
+                          <button
+                            onClick={() => printCertificate(completion)}
+                            className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
+                            style={{backgroundColor: '#0D2035'}}>
+                            🖨 Print
+                          </button>
                         </td>
                       </tr>
                     ))}
