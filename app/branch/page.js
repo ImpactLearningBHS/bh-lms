@@ -139,20 +139,20 @@ export default function BranchPage() {
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
-            font-family: Georgia, serif;
-            background: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 30px;
-          }
-          .certificate {
-            border: 8px solid #0D2035;
-            border-radius: 16px;
-            padding: 40px 56px;
-            width: 100%;
-            max-width: 960px;
+  font-family: Georgia, serif;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 30px;
+}
+.certificate {
+  border: 8px solid #0D2035;
+  border-radius: 16px;
+  padding: 48px 40px;
+  width: 100%;
+  max-width: 600px;
             text-align: center;
             position: relative;
             overflow: hidden;
@@ -200,18 +200,18 @@ export default function BranchPage() {
             border-radius: 2px;
           }
           .main-content {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 48px;
-            margin: 18px 0;
-          }
-          .separator {
-            width: 1px;
-            height: 60px;
-            background: #0D9488;
-            opacity: 0.4;
-          }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin: 18px 0;
+}
+.separator {
+  width: 60px;
+  height: 2px;
+  background: #0D9488;
+  opacity: 0.4;
+}
           .label {
             font-family: Arial, sans-serif;
             font-size: 10px;
