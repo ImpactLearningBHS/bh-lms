@@ -93,22 +93,23 @@ export default function DashboardPage() {
   ];
 
   if (!isAuthorized) return (
-    <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#FDF6F0'}}>
+    <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#FFFFFF'}}>
       <p className="text-gray-400">Loading...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen flex flex-col" style={{backgroundColor: '#FDF6F0'}}>
+    <div className="min-h-screen flex flex-col" style={{backgroundColor: '#FFFFFF'}}>
 
-      <div className="flex items-center justify-between px-8 py-4" style={{backgroundColor: '#9B4757'}}>
-        <img src="/ImpactLearningTransparent" alt="Impact Workforce" className="h-20" />
+      {/* Top Header */}
+      <div className="flex items-center justify-between px-8 py-4" style={{backgroundColor: '#0D2035'}}>
+        <img src="/ImpactWorkforce.png" alt="Impact Workforce" className="h-10" />
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium text-white">Platform Admin</span>
           <button
             onClick={() => window.location.href = '/login'}
             className="text-sm font-medium px-4 py-2 rounded-lg"
-            style={{backgroundColor: '#22C55E', color: 'white'}}
+            style={{backgroundColor: '#0D9488', color: 'white'}}
           >
             Log Out
           </button>
@@ -117,79 +118,82 @@ export default function DashboardPage() {
 
       <div className="flex flex-1">
 
-        <div className="w-64 flex flex-col py-6 px-4 gap-1 bg-white" style={{boxShadow: '2px 0 8px rgba(0,0,0,0.06)'}}>
-          <div className="px-4 mb-6 pb-6 border-b border-gray-100">
-            <p className="text-xs font-semibold uppercase mb-1 text-gray-400">Platform Admin</p>
-            <p className="text-sm font-bold" style={{color: '#6B2737'}}>Administrator</p>
-            <p className="text-xs text-gray-400">All Organizations</p>
+        {/* Sidebar */}
+        <div className="w-64 flex flex-col py-6 px-4 gap-1" style={{backgroundColor: '#0D2035'}}>
+          <div className="px-4 mb-6 pb-6 border-b border-white/10">
+            <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Platform Admin</p>
+            <p className="text-sm font-bold text-white">Administrator</p>
+            <p className="text-xs" style={{color: '#6B7280'}}>All Organizations</p>
           </div>
-          <p className="text-xs font-semibold uppercase px-4 mb-2 text-gray-400">Platform</p>
+          <p className="text-xs font-semibold uppercase px-4 mb-2" style={{color: '#6B7280'}}>Platform</p>
           {navItems.map(item => (
             <button
               key={item.id}
               onClick={() => setActivePage(item.id)}
-              className="text-left px-4 py-3 text-sm transition-colors"
+              className="text-left px-4 py-3 text-sm transition-colors rounded-lg"
               style={{
-                borderLeft: activePage === item.id ? '4px solid #6B2737' : '4px solid transparent',
-                color: activePage === item.id ? '#6B2737' : '#6B6B6B',
+                borderLeft: activePage === item.id ? '4px solid #0D9488' : '4px solid transparent',
+                color: activePage === item.id ? '#0D9488' : '#9CA3AF',
                 fontWeight: activePage === item.id ? '700' : '500',
-                backgroundColor: activePage === item.id ? '#FDF0F2' : 'transparent'
+                backgroundColor: activePage === item.id ? 'rgba(13,148,136,0.1)' : 'transparent'
               }}
             >
               {item.label}
             </button>
           ))}
-          <div className="mt-auto px-4 pt-6 border-t border-gray-100">
+          <div className="mt-auto px-4 pt-6 border-t border-white/10">
             <button
               onClick={() => window.location.href = '/login'}
-              className="text-sm font-medium w-full text-left text-gray-400"
+              className="text-sm font-medium w-full text-left"
+              style={{color: '#6B7280'}}
             >
               Sign Out
             </button>
           </div>
         </div>
 
-        <div className="flex-1 p-8">
+        {/* Main Content */}
+        <div className="flex-1 p-8" style={{backgroundColor: '#F9FAFB'}}>
 
           {activePage === 'dashboard' && (
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h1 className="text-2xl font-bold" style={{color: '#6B2737'}}>Admin Dashboard</h1>
+                <h1 className="text-2xl font-bold" style={{color: '#0D2035'}}>Admin Dashboard</h1>
                 <button
                   className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                  style={{backgroundColor: '#22C55E'}}
+                  style={{backgroundColor: '#0D9488'}}
                 >
                   Assign Training to Organizations
                 </button>
               </div>
-              <p className="text-gray-400 text-sm mb-6">Overview of all organizations — platform-wide view</p>
+              <p className="text-sm mb-6" style={{color: '#6B7280'}}>Overview of all organizations — platform-wide view</p>
 
               <div className="grid grid-cols-4 gap-4 mb-8">
                 <div className="bg-white rounded-xl shadow p-5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Organizations</p>
-                  <p className="text-3xl font-bold" style={{color: '#6B2737'}}>{organizations.length}</p>
+                  <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Organizations</p>
+                  <p className="text-3xl font-bold" style={{color: '#0D2035'}}>{organizations.length}</p>
                 </div>
                 <div className="bg-white rounded-xl shadow p-5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Total Staff</p>
-                  <p className="text-3xl font-bold" style={{color: '#6B2737'}}>0</p>
+                  <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Total Staff</p>
+                  <p className="text-3xl font-bold" style={{color: '#0D2035'}}>0</p>
                 </div>
                 <div className="bg-white rounded-xl shadow p-5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Overdue</p>
+                  <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Overdue</p>
                   <p className="text-3xl font-bold text-red-500">0</p>
-                  <p className="text-xs text-gray-400">Require action</p>
+                  <p className="text-xs" style={{color: '#6B7280'}}>Require action</p>
                 </div>
                 <div className="bg-white rounded-xl shadow p-5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Training Library</p>
-                  <p className="text-3xl font-bold" style={{color: '#6B2737'}}>{trainings.length}</p>
-                  <p className="text-xs text-gray-400">Ready to assign</p>
+                  <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Training Library</p>
+                  <p className="text-3xl font-bold" style={{color: '#0D2035'}}>{trainings.length}</p>
+                  <p className="text-xs" style={{color: '#6B7280'}}>Ready to assign</p>
                 </div>
               </div>
 
               <div className="bg-white rounded-xl shadow p-6 mb-8">
-                <h2 className="text-lg font-bold mb-4" style={{color: '#6B2737'}}>Organization Overview</h2>
+                <h2 className="text-lg font-bold mb-4" style={{color: '#0D2035'}}>Organization Overview</h2>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-xs font-semibold text-gray-400 uppercase border-b">
+                    <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
                       <th className="text-left pb-3">Organization</th>
                       <th className="text-left pb-3">Type</th>
                       <th className="text-left pb-3">Staff</th>
@@ -201,12 +205,12 @@ export default function DashboardPage() {
                   <tbody>
                     {organizations.length === 0 ? (
                       <tr>
-                        <td colSpan="6" className="py-6 text-center text-gray-400">No organizations yet.</td>
+                        <td colSpan="6" className="py-6 text-center" style={{color: '#6B7280'}}>No organizations yet.</td>
                       </tr>
                     ) : (
                       organizations.map(org => (
                         <tr key={org.id} className="border-b border-gray-50">
-                          <td className="py-3 font-medium" style={{color: '#6B2737'}}>{org.name}</td>
+                          <td className="py-3 font-medium" style={{color: '#0D9488'}}>{org.name}</td>
                           <td className="py-3 text-gray-500">{org.type}</td>
                           <td className="py-3 text-gray-500">0</td>
                           <td className="py-3 text-gray-500">0</td>
@@ -221,18 +225,18 @@ export default function DashboardPage() {
 
               <div className="bg-white rounded-xl shadow p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold" style={{color: '#6B2737'}}>Training Assignment Status</h2>
+                  <h2 className="text-lg font-bold" style={{color: '#0D2035'}}>Training Assignment Status</h2>
                   <button
                     className="text-sm font-semibold px-3 py-1 rounded-lg text-white"
-                    style={{backgroundColor: '#22C55E'}}
+                    style={{backgroundColor: '#0D9488'}}
                   >
                     + Assign
                   </button>
                 </div>
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-xs font-semibold text-gray-400 uppercase border-b">
-                    <th className="text-left pb-3">Training</th>
+                    <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
+                      <th className="text-left pb-3">Training</th>
                       <th className="text-left pb-3">Staff Member</th>
                       <th className="text-left pb-3">Completed Date</th>
                     </tr>
@@ -240,12 +244,12 @@ export default function DashboardPage() {
                   <tbody>
                     {completions.length === 0 ? (
                       <tr>
-                        <td colSpan="3" className="py-6 text-center text-gray-400">No completions yet.</td>
+                        <td colSpan="3" className="py-6 text-center" style={{color: '#6B7280'}}>No completions yet.</td>
                       </tr>
                     ) : (
                       completions.map(completion => (
                         <tr key={completion.id} className="border-b border-gray-50">
-                          <td className="py-3 font-medium" style={{color: '#6B2737'}}>{completion.training_title}</td>
+                          <td className="py-3 font-medium" style={{color: '#0D9488'}}>{completion.training_title}</td>
                           <td className="py-3 text-gray-500">{completion.staff_name}</td>
                           <td className="py-3 text-gray-500">{completion.completed_date}</td>
                         </tr>
@@ -260,11 +264,11 @@ export default function DashboardPage() {
           {activePage === 'organizations' && (
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold" style={{color: '#6B2737'}}>All Organizations</h1>
+                <h1 className="text-2xl font-bold" style={{color: '#0D2035'}}>All Organizations</h1>
                 <button
                   onClick={() => setShowAddOrg(true)}
                   className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                  style={{backgroundColor: '#22C55E'}}
+                  style={{backgroundColor: '#0D9488'}}
                 >
                   + Add Organization
                 </button>
@@ -272,10 +276,10 @@ export default function DashboardPage() {
 
               {showAddOrg && (
                 <div className="bg-white rounded-xl shadow p-6 mb-6">
-                  <h2 className="text-lg font-bold mb-4" style={{color: '#6B2737'}}>New Organization</h2>
+                  <h2 className="text-lg font-bold mb-4" style={{color: '#0D2035'}}>New Organization</h2>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Organization Name</label>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Organization Name</label>
                       <input
                         type="text"
                         value={newOrg.name}
@@ -284,7 +288,7 @@ export default function DashboardPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Contact Email</label>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Contact Email</label>
                       <input
                         type="email"
                         value={newOrg.email}
@@ -293,7 +297,7 @@ export default function DashboardPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Status</label>
                       <select
                         value={newOrg.status}
                         onChange={(e) => setNewOrg({...newOrg, status: e.target.value})}
@@ -304,7 +308,7 @@ export default function DashboardPage() {
                       </select>
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-2">Level of Care (select all that apply)</label>
+                      <label className="block text-xs font-semibold uppercase mb-2" style={{color: '#6B7280'}}>Level of Care (select all that apply)</label>
                       <div className="grid grid-cols-2 gap-2">
                         {levels.map(level => (
                           <label key={level} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
@@ -334,7 +338,7 @@ export default function DashboardPage() {
                         setShowAddOrg(false);
                       }}
                       className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                      style={{backgroundColor: '#22C55E'}}
+                      style={{backgroundColor: '#0D9488'}}
                     >
                       Save Organization
                     </button>
@@ -351,7 +355,7 @@ export default function DashboardPage() {
               <div className="bg-white rounded-xl shadow p-6">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-xs font-semibold text-gray-400 uppercase border-b">
+                    <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
                       <th className="text-left pb-3">Organization</th>
                       <th className="text-left pb-3">Type</th>
                       <th className="text-left pb-3">Contact</th>
@@ -361,12 +365,12 @@ export default function DashboardPage() {
                   <tbody>
                     {organizations.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="py-6 text-center text-gray-400">No organizations yet.</td>
+                        <td colSpan="4" className="py-6 text-center" style={{color: '#6B7280'}}>No organizations yet.</td>
                       </tr>
                     ) : (
                       organizations.map(org => (
                         <tr key={org.id} className="border-b border-gray-50">
-                          <td className="py-3 font-medium" style={{color: '#6B2737'}}>{org.name}</td>
+                          <td className="py-3 font-medium" style={{color: '#0D9488'}}>{org.name}</td>
                           <td className="py-3 text-gray-500">{org.type}</td>
                           <td className="py-3 text-gray-500">{org.email}</td>
                           <td className="py-3">
@@ -388,14 +392,14 @@ export default function DashboardPage() {
             </div>
           )}
 
-{activePage === 'trainings' && (
+          {activePage === 'trainings' && (
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold" style={{color: '#6B2737'}}>Training Library</h1>
+                <h1 className="text-2xl font-bold" style={{color: '#0D2035'}}>Training Library</h1>
                 <button
                   onClick={() => setShowAddTraining(true)}
                   className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                  style={{backgroundColor: '#22C55E'}}
+                  style={{backgroundColor: '#0D9488'}}
                 >
                   + Add Training
                 </button>
@@ -403,10 +407,10 @@ export default function DashboardPage() {
 
               {showAddTraining && (
                 <div className="bg-white rounded-xl shadow p-6 mb-6">
-                  <h2 className="text-lg font-bold mb-4" style={{color: '#6B2737'}}>New Training</h2>
+                  <h2 className="text-lg font-bold mb-4" style={{color: '#0D2035'}}>New Training</h2>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Training Name</label>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Training Name</label>
                       <input
                         type="text"
                         value={newTraining.title}
@@ -415,7 +419,7 @@ export default function DashboardPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Category</label>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Category</label>
                       <select
                         value={newTraining.category}
                         onChange={(e) => setNewTraining({...newTraining, category: e.target.value})}
@@ -426,7 +430,7 @@ export default function DashboardPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Recurrence</label>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Recurrence</label>
                       <select
                         value={newTraining.recurrence}
                         onChange={(e) => setNewTraining({...newTraining, recurrence: e.target.value})}
@@ -438,7 +442,7 @@ export default function DashboardPage() {
                       </select>
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Description</label>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Description</label>
                       <textarea
                         value={newTraining.description}
                         onChange={(e) => setNewTraining({...newTraining, description: e.target.value})}
@@ -451,7 +455,7 @@ export default function DashboardPage() {
                     <button
                       onClick={() => saveTraining(newTraining)}
                       className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                      style={{backgroundColor: '#22C55E'}}
+                      style={{backgroundColor: '#0D9488'}}
                     >
                       Save Training
                     </button>
@@ -468,7 +472,7 @@ export default function DashboardPage() {
               <div className="bg-white rounded-xl shadow p-6">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-xs font-semibold text-gray-400 uppercase border-b">
+                    <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
                       <th className="text-left pb-3">Training Name</th>
                       <th className="text-left pb-3">Category</th>
                       <th className="text-left pb-3">Recurrence</th>
@@ -478,12 +482,12 @@ export default function DashboardPage() {
                   <tbody>
                     {trainings.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="py-6 text-center text-gray-400">No trainings yet. Add one to get started.</td>
+                        <td colSpan="4" className="py-6 text-center" style={{color: '#6B7280'}}>No trainings yet. Add one to get started.</td>
                       </tr>
                     ) : (
                       trainings.map(training => (
                         <tr key={training.id} className="border-b border-gray-50">
-                          <td className="py-3 font-medium" style={{color: '#6B2737'}}>{training.title}</td>
+                          <td className="py-3 font-medium" style={{color: '#0D9488'}}>{training.title}</td>
                           <td className="py-3 text-gray-500">{training.category}</td>
                           <td className="py-3 text-gray-500">{training.recurrence}</td>
                           <td className="py-3">
@@ -507,15 +511,15 @@ export default function DashboardPage() {
 
           {activePage === 'completions' && (
             <div>
-              <h1 className="text-2xl font-bold mb-6" style={{color: '#6B2737'}}>Completions</h1>
-              <p className="text-gray-500">Completion tracking coming soon.</p>
+              <h1 className="text-2xl font-bold mb-6" style={{color: '#0D2035'}}>Completions</h1>
+              <p style={{color: '#6B7280'}}>Completion tracking coming soon.</p>
             </div>
           )}
 
           {activePage === 'settings' && (
             <div>
-              <h1 className="text-2xl font-bold mb-6" style={{color: '#6B2737'}}>Settings</h1>
-              <p className="text-gray-500">Settings coming soon.</p>
+              <h1 className="text-2xl font-bold mb-6" style={{color: '#0D2035'}}>Settings</h1>
+              <p style={{color: '#6B7280'}}>Settings coming soon.</p>
             </div>
           )}
 
