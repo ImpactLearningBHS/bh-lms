@@ -13,6 +13,7 @@ export default function BranchPage() {
   const [trainings, setTrainings] = useState([]);
   const [completions, setCompletions] = useState([]);
   const [newStaff, setNewStaff] = useState({full_name: '', email: '', role: 'Therapist', hire_date: '', status: 'Active'});
+
   useEffect(() => {
     checkBranchAuth();
     fetchCurrentUser();
@@ -60,7 +61,7 @@ export default function BranchPage() {
         .from('users')
         .select('*')
         .eq('organization_id', me.organization_id)
-.neq('role', 'Platform Admin');
+        .neq('role', 'Platform Admin');
       if (data) setStaff(data);
     }
   };
@@ -169,22 +170,23 @@ export default function BranchPage() {
   ];
 
   if (!isAuthorized) return (
-    <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#FDF6F0'}}>
+    <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#FFFFFF'}}>
       <p className="text-gray-400">Loading...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen flex flex-col" style={{backgroundColor: '#FDF6F0'}}>
+    <div className="min-h-screen flex flex-col" style={{backgroundColor: '#FFFFFF'}}>
 
-      <div className="flex items-center justify-between px-8 py-4" style={{backgroundColor: '#9B4757'}}>
-        <img src="/ImpactLearningTransparent" alt="Impact Workforce" className="h-20" />
+      {/* Top Header */}
+      <div className="flex items-center justify-between px-8 py-4" style={{backgroundColor: '#0D2035'}}>
+        <img src="/ImpactWorkforce.png" alt="Impact Workforce" className="h-10" />
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium text-white">{orgName}</span>
           <button
             onClick={() => window.location.href = '/login'}
             className="text-sm font-medium px-4 py-2 rounded-lg"
-            style={{backgroundColor: '#22C55E', color: 'white'}}
+            style={{backgroundColor: '#0D9488', color: 'white'}}
           >
             Log Out
           </button>
@@ -193,54 +195,57 @@ export default function BranchPage() {
 
       <div className="flex flex-1">
 
-        <div className="w-64 flex flex-col py-6 px-4 gap-1 bg-white" style={{boxShadow: '2px 0 8px rgba(0,0,0,0.06)'}}>
-          <div className="px-4 mb-6 pb-6 border-b border-gray-100">
-            <p className="text-xs font-semibold uppercase mb-1 text-gray-400">Branch Admin</p>
-            <p className="text-sm font-bold" style={{color: '#6B2737'}}>{orgName}</p>
+        {/* Sidebar */}
+        <div className="w-64 flex flex-col py-6 px-4 gap-1" style={{backgroundColor: '#0D2035'}}>
+          <div className="px-4 mb-6 pb-6 border-b border-white/10">
+            <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Branch Admin</p>
+            <p className="text-sm font-bold text-white">{orgName}</p>
           </div>
-          <p className="text-xs font-semibold uppercase px-4 mb-2 text-gray-400">Menu</p>
+          <p className="text-xs font-semibold uppercase px-4 mb-2" style={{color: '#6B7280'}}>Menu</p>
           {navItems.map(item => (
             <button
               key={item.id}
               onClick={() => setActivePage(item.id)}
-              className="text-left px-4 py-3 text-sm transition-colors"
+              className="text-left px-4 py-3 text-sm transition-colors rounded-lg"
               style={{
-                borderLeft: activePage === item.id ? '4px solid #6B2737' : '4px solid transparent',
-                color: activePage === item.id ? '#6B2737' : '#6B6B6B',
+                borderLeft: activePage === item.id ? '4px solid #0D9488' : '4px solid transparent',
+                color: activePage === item.id ? '#0D9488' : '#9CA3AF',
                 fontWeight: activePage === item.id ? '700' : '500',
-                backgroundColor: activePage === item.id ? '#FDF0F2' : 'transparent'
+                backgroundColor: activePage === item.id ? 'rgba(13,148,136,0.1)' : 'transparent'
               }}
             >
               {item.label}
             </button>
           ))}
-          <div className="mt-auto px-4 pt-6 border-t border-gray-100">
+          <div className="mt-auto px-4 pt-6 border-t border-white/10">
             <button
               onClick={() => window.location.href = '/login'}
-              className="text-sm font-medium w-full text-left text-gray-400"
+              className="text-sm font-medium w-full text-left"
+              style={{color: '#6B7280'}}
             >
               Sign Out
             </button>
           </div>
         </div>
 
-        <div className="flex-1 p-8">
+        {/* Main Content */}
+        <div className="flex-1 p-8" style={{backgroundColor: '#F9FAFB'}}>
 
           {activePage === 'dashboard' && (
             <div>
-              <h1 className="text-2xl font-bold mb-2" style={{color: '#6B2737'}}>Branch Dashboard</h1>
-              <p className="text-gray-400 text-sm mb-6">Overview of your organization</p>
+              <h1 className="text-2xl font-bold mb-2" style={{color: '#0D2035'}}>Branch Dashboard</h1>
+              <p className="text-sm mb-6" style={{color: '#6B7280'}}>Overview of your organization</p>
               <div className="grid grid-cols-3 gap-4 mb-8">
                 <div className="bg-white rounded-xl shadow p-5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Total Staff</p>
-                  <p className="text-3xl font-bold" style={{color: '#6B2737'}}>{staff.length}</p>
+                  <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Total Staff</p>
+                  <p className="text-3xl font-bold" style={{color: '#0D2035'}}>{staff.length}</p>
                 </div>
                 <div className="bg-white rounded-xl shadow p-5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Trainings Assigned</p>
-                  <p className="text-3xl font-bold" style={{color: '#6B2737'}}>0</p>
+                  <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Trainings Assigned</p>
+                  <p className="text-3xl font-bold" style={{color: '#0D2035'}}>0</p>
                 </div>
                 <div className="bg-white rounded-xl shadow p-5">
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Overdue</p>
+                  <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Overdue</p>
                   <p className="text-3xl font-bold text-red-500">0</p>
                 </div>
               </div>
@@ -250,11 +255,11 @@ export default function BranchPage() {
           {activePage === 'staff' && (
             <div>
               <div className="flex items-center justify-between mb-6">
-                <h1 className="text-2xl font-bold" style={{color: '#6B2737'}}>My Staff</h1>
+                <h1 className="text-2xl font-bold" style={{color: '#0D2035'}}>My Staff</h1>
                 <button
                   onClick={() => setShowAddStaff(true)}
                   className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                  style={{backgroundColor: '#22C55E'}}
+                  style={{backgroundColor: '#0D9488'}}
                 >
                   + Add Staff
                 </button>
@@ -262,10 +267,10 @@ export default function BranchPage() {
 
               {showAddStaff && (
                 <div className="bg-white rounded-xl shadow p-6 mb-6">
-                  <h2 className="text-lg font-bold mb-4" style={{color: '#6B2737'}}>New Staff Member</h2>
+                  <h2 className="text-lg font-bold mb-4" style={{color: '#0D2035'}}>New Staff Member</h2>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Full Name</label>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Full Name</label>
                       <input
                         type="text"
                         value={newStaff.full_name}
@@ -274,7 +279,7 @@ export default function BranchPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Email</label>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Email</label>
                       <input
                         type="email"
                         value={newStaff.email}
@@ -283,7 +288,7 @@ export default function BranchPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Role</label>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Role</label>
                       <select
                         value={newStaff.role}
                         onChange={(e) => setNewStaff({...newStaff, role: e.target.value})}
@@ -295,7 +300,7 @@ export default function BranchPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Hire Date</label>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Hire Date</label>
                       <input
                         type="date"
                         value={newStaff.hire_date}
@@ -304,7 +309,7 @@ export default function BranchPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">Status</label>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Status</label>
                       <select
                         value={newStaff.status}
                         onChange={(e) => setNewStaff({...newStaff, status: e.target.value})}
@@ -319,7 +324,7 @@ export default function BranchPage() {
                     <button
                       onClick={() => saveStaff(newStaff)}
                       className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                      style={{backgroundColor: '#22C55E'}}
+                      style={{backgroundColor: '#0D9488'}}
                     >
                       Save Staff Member
                     </button>
@@ -336,7 +341,7 @@ export default function BranchPage() {
               <div className="bg-white rounded-xl shadow p-6">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-xs font-semibold text-gray-400 uppercase border-b">
+                    <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
                       <th className="text-left pb-3">Name</th>
                       <th className="text-left pb-3">Email</th>
                       <th className="text-left pb-3">Role</th>
@@ -347,12 +352,12 @@ export default function BranchPage() {
                   <tbody>
                     {staff.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="py-6 text-center text-gray-400">No staff yet. Add one to get started.</td>
+                        <td colSpan="5" className="py-6 text-center" style={{color: '#6B7280'}}>No staff yet. Add one to get started.</td>
                       </tr>
                     ) : (
                       staff.map(member => (
                         <tr key={member.id} className="border-b border-gray-50">
-                          <td className="py-3 font-medium" style={{color: '#6B2737'}}>{member.full_name}</td>
+                          <td className="py-3 font-medium" style={{color: '#0D9488'}}>{member.full_name}</td>
                           <td className="py-3 text-gray-500">{member.email}</td>
                           <td className="py-3 text-gray-500">{member.role}</td>
                           <td className="py-3 text-gray-500">{member.hire_date}</td>
@@ -375,15 +380,15 @@ export default function BranchPage() {
             </div>
           )}
 
-{activePage === 'trainings' && (
+          {activePage === 'trainings' && (
             <div>
-              <h1 className="text-2xl font-bold mb-2" style={{color: '#6B2737'}}>Trainings</h1>
-              <p className="text-gray-400 text-sm mb-6">All required trainings for your organization</p>
+              <h1 className="text-2xl font-bold mb-2" style={{color: '#0D2035'}}>Trainings</h1>
+              <p className="text-sm mb-6" style={{color: '#6B7280'}}>All required trainings for your organization</p>
 
               <div className="bg-white rounded-xl shadow p-6">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-xs font-semibold text-gray-400 uppercase border-b">
+                    <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
                       <th className="text-left pb-3">Training Name</th>
                       <th className="text-left pb-3">Category</th>
                       <th className="text-left pb-3">Recurrence</th>
@@ -391,38 +396,36 @@ export default function BranchPage() {
                     </tr>
                   </thead>
                   <tbody>
-                  {trainings.length === 0 ? (
+                    {trainings.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="py-6 text-center text-gray-400">No trainings assigned yet.</td>
+                        <td colSpan="4" className="py-6 text-center" style={{color: '#6B7280'}}>No trainings assigned yet.</td>
                       </tr>
                     ) : (
                       getTrainingsForRole(currentUser?.role || 'Other').map(training => {
-                        const isCompleted = completions.some(c => 
-                          c.training_id === training.id
-                        );
+                        const isCompleted = completions.some(c => c.training_id === training.id);
                         return (
-                        <tr key={training.id} className="border-b border-gray-50">
-                          <td className="py-3 font-medium" style={{color: '#6B2737'}}>{training.title}</td>
-                          <td className="py-3 text-gray-500">{training.category}</td>
-                          <td className="py-3 text-gray-500">{training.recurrence}</td>
-                          <td className="py-3">
-                            {isCompleted ? (
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                                style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}
-                              >
-                                Completed
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => window.location.href = `/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`}
-                                className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
-                                style={{backgroundColor: '#22C55E'}}
-                              >
-                                Take Quiz
-                              </button>
-                            )}
-                          </td>
-                        </tr>
+                          <tr key={training.id} className="border-b border-gray-50">
+                            <td className="py-3 font-medium" style={{color: '#0D9488'}}>{training.title}</td>
+                            <td className="py-3 text-gray-500">{training.category}</td>
+                            <td className="py-3 text-gray-500">{training.recurrence}</td>
+                            <td className="py-3">
+                              {isCompleted ? (
+                                <span className="px-2 py-1 rounded-full text-xs font-semibold"
+                                  style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}
+                                >
+                                  Completed
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => window.location.href = `/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`}
+                                  className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
+                                  style={{backgroundColor: '#0D9488'}}
+                                >
+                                  Take Quiz
+                                </button>
+                              )}
+                            </td>
+                          </tr>
                         );
                       })
                     )}
@@ -432,15 +435,15 @@ export default function BranchPage() {
             </div>
           )}
 
-{activePage === 'completions' && (
+          {activePage === 'completions' && (
             <div>
-              <h1 className="text-2xl font-bold mb-2" style={{color: '#6B2737'}}>Completions</h1>
-              <p className="text-gray-400 text-sm mb-6">Track training completions for your staff</p>
+              <h1 className="text-2xl font-bold mb-2" style={{color: '#0D2035'}}>Completions</h1>
+              <p className="text-sm mb-6" style={{color: '#6B7280'}}>Track training completions for your staff</p>
 
               <div className="bg-white rounded-xl shadow p-6">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-xs font-semibold text-gray-400 uppercase border-b">
+                    <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
                       <th className="text-left pb-3">Staff Member</th>
                       <th className="text-left pb-3">Training</th>
                       <th className="text-left pb-3">Completed Date</th>
@@ -450,20 +453,17 @@ export default function BranchPage() {
                   <tbody>
                     {completions.length === 0 ? (
                       <tr>
-                        <td colSpan="4" className="py-6 text-center text-gray-400">No completions recorded yet.</td>
+                        <td colSpan="4" className="py-6 text-center" style={{color: '#6B7280'}}>No completions recorded yet.</td>
                       </tr>
                     ) : (
                       completions.map(completion => (
                         <tr key={completion.id} className="border-b border-gray-50">
-                          <td className="py-3 font-medium" style={{color: '#6B2737'}}>{completion.staff_name}</td>
+                          <td className="py-3 font-medium" style={{color: '#0D9488'}}>{completion.staff_name}</td>
                           <td className="py-3 text-gray-500">{completion.training_title}</td>
                           <td className="py-3 text-gray-500">{completion.completed_date}</td>
                           <td className="py-3">
                             <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                              style={{
-                                backgroundColor: '#DCFCE7',
-                                color: '#16A34A'
-                              }}
+                              style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}
                             >
                               Completed
                             </span>
