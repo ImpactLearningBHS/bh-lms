@@ -64,7 +64,7 @@ export default function LoginPage() {
         {/* Form area */}
 <div className="px-8 py-8">
   <div className="mb-6 pb-6 border-b border-gray-100">
-    <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '60px', display: 'block', margin: '0 auto', objectFit: 'contain', objectPosition: 'center'}} />
+  <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '80px', display: 'block', margin: '0 auto', objectFit: 'contain', objectPosition: 'center'}} />
   </div>
   <h2 className="text-lg font-bold mb-1" style={{color: '#0D2035'}}>Welcome back</h2>
   <p className="text-sm mb-6" style={{color: '#6B7280'}}>Sign in to access your portal</p>
