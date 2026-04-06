@@ -63,15 +63,8 @@ export default function LoginPage() {
 
         {/* Logo area */}
         <div className="px-8 pt-10 pb-6 text-center border-b border-gray-100">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-            style={{backgroundColor: '#EEF2F7'}}>
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="10" cy="16" r="8" fill="#0D9488" opacity="0.9"/>
-              <circle cx="22" cy="16" r="8" fill="#7C3AED" opacity="0.9"/>
-            </svg>
-          </div>
-          <h1 className="text-xl font-bold" style={{color: '#0D2035'}}>Impact Workforce</h1>
-          <p className="text-sm mt-1" style={{color: '#6B7280'}}>Training Management Platform</p>
+        <img src="/ImpactWorkforce.png" alt="Impact Workforce" className="h-20 mb-2" />
+        <p className="text-sm mt-1" style={{color: '#6B7280'}}>Training Management Platform</p>
         </div>
 
         {/* Form area */}
