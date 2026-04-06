@@ -248,37 +248,9 @@ export default function BranchPage() {
               </div>
 
               {/* Charts row */}
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 gap-6">
 
-                {/* Training Progress bar chart */}
-                <div className="bg-white rounded-xl shadow p-6">
-                  <h2 className="text-base font-bold mb-5" style={{color: '#0D2035'}}>Training Progress</h2>
-                  {assignments.length === 0 ? (
-                    <p className="text-sm" style={{color: '#6B7280'}}>No trainings assigned yet.</p>
-                  ) : (
-                    <div className="space-y-5">
-                      {assignments.map((a, index) => {
-                        const training = trainings.find(t => t.id === a.training_id);
-                        const rate = getTrainingCompletionRate(a.training_id);
-                        const color = chartColors[index % chartColors.length];
-                        const completed = completions.filter(c => c.training_id === a.training_id).length;
-                        return (
-                          <div key={a.id}>
-                            <div className="flex justify-between mb-1.5">
-                              <span className="text-sm font-semibold" style={{color: '#0D2035'}}>{training?.title || '—'}</span>
-                              <span className="text-sm font-bold" style={{color}}>{rate}%</span>
-                            </div>
-                            <div className="rounded-full h-3" style={{backgroundColor: '#F3F4F6'}}>
-                              <div className="h-3 rounded-full transition-all"
-                                style={{width: `${rate}%`, backgroundColor: color}}></div>
-                            </div>
-                            <p className="text-xs mt-1" style={{color: '#6B7280'}}>{completed} of {staff.length} staff completed</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                
 
                 {/* Staff completion status */}
                 <div className="bg-white rounded-xl shadow p-6">
