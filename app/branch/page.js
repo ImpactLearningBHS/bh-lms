@@ -8,6 +8,8 @@ export default function BranchPage() {
   const [orgName, setOrgName] = useState('Branch Admin');
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [orgId, setOrgId] = useState(null);
+  const [isImpersonating, setIsImpersonating] = useState(false);
   const [staff, setStaff] = useState([]);
   const [showAddStaff, setShowAddStaff] = useState(false);
   const [trainings, setTrainings] = useState([]);
@@ -23,8 +25,27 @@ export default function BranchPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       window.location.href = '/login';
+      return;
+    }
+
+    setIsAuthorized(true);
+
+    // Check if impersonating via URL params
+    const params = new URLSearchParams(window.location.search);
+    const impersonateOrgId = params.get('impersonate_org');
+    const impersonateOrgName = params.get('org_name');
+
+    if (impersonateOrgId) {
+      // Impersonation mode — use the org from the URL
+      setIsImpersonating(true);
+      setOrgId(impersonateOrgId);
+      setOrgName(decodeURIComponent(impersonateOrgName || 'Organization'));
+      fetchStaff(impersonateOrgId);
+      fetchAssignments(impersonateOrgId);
+      fetchTrainings();
+      fetchCompletions(impersonateOrgId);
     } else {
-      setIsAuthorized(true);
+      // Normal mode — look up the logged-in user's org
       await fetchCurrentUser();
     }
   };
@@ -39,6 +60,7 @@ export default function BranchPage() {
         .single();
       if (data) {
         setCurrentUser(data);
+        setOrgId(data.organization_id);
         setOrgName(data.organizations?.name || 'Branch Admin');
         fetchStaff(data.organization_id);
         fetchAssignments(data.organization_id);
@@ -48,12 +70,12 @@ export default function BranchPage() {
     }
   };
 
-  const fetchStaff = async (orgId) => {
-    if (!orgId) return;
+  const fetchStaff = async (oId) => {
+    if (!oId) return;
     const { data } = await supabase
       .from('users')
       .select('*')
-      .eq('organization_id', orgId)
+      .eq('organization_id', oId)
       .neq('role', 'Platform Admin');
     if (data) setStaff(data);
   };
@@ -63,23 +85,23 @@ export default function BranchPage() {
     if (data) setTrainings(data);
   };
 
-  const fetchAssignments = async (orgId) => {
-    if (!orgId) return;
+  const fetchAssignments = async (oId) => {
+    if (!oId) return;
     const { data } = await supabase
       .from('training_assignments')
       .select('*')
-      .eq('organization_id', orgId)
+      .eq('organization_id', oId)
       .eq('status', 'Active');
     if (data) setAssignments(data);
   };
 
-  const fetchCompletions = async (orgId) => {
-    if (!orgId) return;
+  const fetchCompletions = async (oId) => {
+    if (!oId) return;
     const { data: orgStaff } = await supabase
       .from('users')
       .select('id')
-      .eq('organization_id', orgId);
-    if (orgStaff) {
+      .eq('organization_id', oId);
+    if (orgStaff && orgStaff.length > 0) {
       const staffIds = orgStaff.map(s => s.id);
       const { data } = await supabase
         .from('training_completions')
@@ -101,7 +123,7 @@ export default function BranchPage() {
   };
 
   const saveStaff = async (member) => {
-    if (!currentUser?.organization_id) {
+    if (!orgId) {
       alert('Error: Could not determine your organization. Please refresh and try again.');
       return;
     }
@@ -114,7 +136,7 @@ export default function BranchPage() {
         role: member.role,
         hire_date: member.hire_date,
         status: member.status,
-        organization_id: currentUser.organization_id
+        organization_id: orgId
       })
     });
     const result = await response.json();
@@ -138,132 +160,25 @@ export default function BranchPage() {
         <title>Certificate of Completion</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body {
-  font-family: Georgia, serif;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  padding: 30px;
-}
-.certificate {
-  border: 8px solid #0D2035;
-  border-radius: 16px;
-  padding: 48px 40px;
-  width: 100%;
-  max-width: 600px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-            background: white;
-          }
-          .bg-shapes {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-          }
-          .inner-box {
-            border: 2px solid #0D9488;
-            border-radius: 10px;
-            padding: 36px 48px;
-            position: relative;
-            background: rgba(250,250,247,0.75);
-          }
-          .logo-area {
-            margin-bottom: 14px;
-          }
-          .logo-area img {
-            height: 44px;
-            object-fit: contain;
-          }
-          .subtitle {
-            font-family: Arial, sans-serif;
-            font-size: 10px;
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            color: #6B7280;
-            margin-bottom: 10px;
-          }
-          h1 {
-            font-size: 30px;
-            color: #0D2035;
-            margin-bottom: 4px;
-          }
-          .divider {
-            width: 60px;
-            height: 3px;
-            background: #0D9488;
-            margin: 12px auto;
-            border-radius: 2px;
-          }
-          .main-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  margin: 18px 0;
-}
-.separator {
-  width: 60px;
-  height: 2px;
-  background: #0D9488;
-  opacity: 0.4;
-}
-          .label {
-            font-family: Arial, sans-serif;
-            font-size: 10px;
-            color: #6B7280;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            margin-bottom: 6px;
-          }
-          .staff-name {
-            font-size: 28px;
-            color: #0D2035;
-            font-style: italic;
-          }
-          .training-title {
-            font-size: 18px;
-            font-weight: bold;
-            color: #0D9488;
-            font-family: Arial, sans-serif;
-          }
-          .details {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 20px;
-            padding-top: 16px;
-            border-top: 1px solid rgba(13,148,136,0.3);
-            font-family: Arial, sans-serif;
-          }
-          .detail-label {
-            font-size: 9px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: #6B7280;
-            margin-bottom: 4px;
-          }
-          .detail-value {
-            font-size: 13px;
-            color: #0D2035;
-            font-weight: bold;
-          }
-          .watermark {
-            position: absolute;
-            bottom: 14px;
-            right: 24px;
-            font-family: Arial, sans-serif;
-            font-size: 9px;
-            color: #D1D5DB;
-            letter-spacing: 1px;
-          }
-          @media print {
-            body { padding: 0; }
-            .certificate { border-width: 6px; }
-          }
+          body { font-family: Georgia, serif; background: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 30px; }
+          .certificate { border: 8px solid #0D2035; border-radius: 16px; padding: 48px 40px; width: 100%; max-width: 600px; text-align: center; position: relative; overflow: hidden; background: white; }
+          .bg-shapes { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+          .inner-box { border: 2px solid #0D9488; border-radius: 10px; padding: 36px 48px; position: relative; background: rgba(250,250,247,0.75); }
+          .logo-area { margin-bottom: 14px; }
+          .logo-area img { height: 44px; object-fit: contain; }
+          .subtitle { font-family: Arial, sans-serif; font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: #6B7280; margin-bottom: 10px; }
+          h1 { font-size: 30px; color: #0D2035; margin-bottom: 4px; }
+          .divider { width: 60px; height: 3px; background: #0D9488; margin: 12px auto; border-radius: 2px; }
+          .main-content { display: flex; flex-direction: column; align-items: center; gap: 16px; margin: 18px 0; }
+          .separator { width: 60px; height: 2px; background: #0D9488; opacity: 0.4; }
+          .label { font-family: Arial, sans-serif; font-size: 10px; color: #6B7280; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+          .staff-name { font-size: 28px; color: #0D2035; font-style: italic; }
+          .training-title { font-size: 18px; font-weight: bold; color: #0D9488; font-family: Arial, sans-serif; }
+          .details { display: flex; justify-content: space-around; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(13,148,136,0.3); font-family: Arial, sans-serif; }
+          .detail-label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #6B7280; margin-bottom: 4px; }
+          .detail-value { font-size: 13px; color: #0D2035; font-weight: bold; }
+          .watermark { position: absolute; bottom: 14px; right: 24px; font-family: Arial, sans-serif; font-size: 9px; color: #D1D5DB; letter-spacing: 1px; }
+          @media print { body { padding: 0; } .certificate { border-width: 6px; } }
         </style>
       </head>
       <body>
@@ -277,45 +192,23 @@ export default function BranchPage() {
             <rect x="1%" y="40%" width="70" height="70" rx="12" fill="#0D2035" opacity="0.12" transform="rotate(-20 30 70)"/>
             <circle cx="93%" cy="45%" r="25" fill="#0D9488" opacity="0.18"/>
             <circle cx="7%" cy="55%" r="20" fill="#0D9488" opacity="0.15"/>
-            <circle cx="50%" cy="98%" r="50" fill="#0D2035" opacity="0.06"/>
           </svg>
-
           <div class="inner-box">
-            <div class="logo-area">
-              <img src="${window.location.origin}/ImpactWorkforce.png" alt="Impact Workforce" />
-            </div>
+            <div class="logo-area"><img src="${window.location.origin}/ImpactWorkforce.png" alt="Impact Workforce" /></div>
             <p class="subtitle">Certificate of Completion</p>
             <h1>Achievement Award</h1>
             <div class="divider"></div>
-
             <div class="main-content">
-              <div>
-                <p class="label">This certifies that</p>
-                <p class="staff-name">${completion.staff_name}</p>
-              </div>
+              <div><p class="label">This certifies that</p><p class="staff-name">${completion.staff_name}</p></div>
               <div class="separator"></div>
-              <div>
-                <p class="label">Has successfully completed</p>
-                <p class="training-title">${completion.training_title}</p>
-              </div>
+              <div><p class="label">Has successfully completed</p><p class="training-title">${completion.training_title}</p></div>
             </div>
-
             <div class="details">
-              <div>
-                <p class="detail-label">Organization</p>
-                <p class="detail-value">${orgName}</p>
-              </div>
-              <div>
-                <p class="detail-label">Completion Date</p>
-                <p class="detail-value">${completionDate}</p>
-              </div>
-              <div>
-                <p class="detail-label">Valid Through</p>
-                <p class="detail-value">${expiryDate}</p>
-              </div>
+              <div><p class="detail-label">Organization</p><p class="detail-value">${orgName}</p></div>
+              <div><p class="detail-label">Completion Date</p><p class="detail-value">${completionDate}</p></div>
+              <div><p class="detail-label">Valid Through</p><p class="detail-value">${expiryDate}</p></div>
             </div>
           </div>
-
           <p class="watermark">Impact Workforce Systems LLC © ${new Date().getFullYear()}</p>
         </div>
         <script>window.onload = () => window.print();</script>
@@ -351,10 +244,24 @@ export default function BranchPage() {
       <div className="flex items-center justify-between px-8 py-4" style={{backgroundColor: '#0D2035'}}>
         <img src="/ImpactWorkforce.png" alt="Impact Workforce" className="h-10" />
         <div className="flex items-center gap-4">
+          {isImpersonating && (
+            <span className="text-xs font-semibold px-3 py-1 rounded-full"
+              style={{backgroundColor: '#7C3AED', color: 'white'}}>
+              👁 Impersonating: {orgName}
+            </span>
+          )}
           <span className="text-sm font-medium text-white">{orgName}</span>
-          <button onClick={() => window.location.href = '/login'}
-            className="text-sm font-medium px-4 py-2 rounded-lg text-white"
-            style={{backgroundColor: '#0D9488'}}>Log Out</button>
+          {isImpersonating ? (
+            <button onClick={() => window.location.href = '/dashboard'}
+              className="text-sm font-medium px-4 py-2 rounded-lg text-white"
+              style={{backgroundColor: '#7C3AED'}}>
+              ← Exit Impersonation
+            </button>
+          ) : (
+            <button onClick={() => window.location.href = '/login'}
+              className="text-sm font-medium px-4 py-2 rounded-lg text-white"
+              style={{backgroundColor: '#0D9488'}}>Log Out</button>
+          )}
         </div>
       </div>
 
@@ -363,7 +270,9 @@ export default function BranchPage() {
         {/* Sidebar */}
         <div className="w-64 flex flex-col py-6 px-4 gap-1" style={{backgroundColor: '#0D2035'}}>
           <div className="px-4 mb-6 pb-6 border-b border-white/10">
-            <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Branch Admin</p>
+            <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>
+              {isImpersonating ? 'Impersonating' : 'Branch Admin'}
+            </p>
             <p className="text-sm font-bold text-white">{orgName}</p>
           </div>
           <p className="text-xs font-semibold uppercase px-4 mb-2" style={{color: '#6B7280'}}>Menu</p>
@@ -380,10 +289,18 @@ export default function BranchPage() {
             </button>
           ))}
           <div className="mt-auto px-4 pt-6 border-t border-white/10">
-            <button onClick={() => window.location.href = '/login'}
-              className="text-sm font-medium w-full text-left" style={{color: '#6B7280'}}>
-              Sign Out
-            </button>
+            {isImpersonating ? (
+              <button onClick={() => window.location.href = '/dashboard'}
+                className="text-sm font-medium w-full text-left"
+                style={{color: '#7C3AED'}}>
+                ← Exit Impersonation
+              </button>
+            ) : (
+              <button onClick={() => window.location.href = '/login'}
+                className="text-sm font-medium w-full text-left" style={{color: '#6B7280'}}>
+                Sign Out
+              </button>
+            )}
           </div>
         </div>
 
@@ -522,14 +439,14 @@ export default function BranchPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {getAssignedTrainingsForRole(currentUser?.role || 'Other').length === 0 ? (
+                    {getAssignedTrainingsForRole(currentUser?.role || 'Branch Admin').length === 0 ? (
                       <tr>
                         <td colSpan="4" className="py-6 text-center" style={{color: '#6B7280'}}>
-                          No trainings assigned yet. Contact your platform admin.
+                          No trainings assigned yet.
                         </td>
                       </tr>
                     ) : (
-                      getAssignedTrainingsForRole(currentUser?.role || 'Other').map(training => {
+                      getAssignedTrainingsForRole(currentUser?.role || 'Branch Admin').map(training => {
                         const isCompleted = completions.some(c =>
                           c.training_id === training.id && c.user_id === currentUser?.id
                         );
@@ -602,8 +519,7 @@ export default function BranchPage() {
                           </span>
                         </td>
                         <td className="py-3">
-                          <button
-                            onClick={() => printCertificate(completion)}
+                          <button onClick={() => printCertificate(completion)}
                             className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
                             style={{backgroundColor: '#0D2035'}}>
                             🖨 Print
