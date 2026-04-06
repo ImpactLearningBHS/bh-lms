@@ -150,7 +150,7 @@ export default function LoginPage() {
                 <circle cx="7" cy="7" r="6" stroke="#0D9488" strokeWidth="1.5"/>
                 <path d="M5 7l1.5 1.5L9 5.5" stroke="#0D9488" strokeWidth="1.5" strokeLinecap="round"/>
               </svg>
-              <span className="text-xs" style={{color: '#6B7280'}}>HIPAA Compliant</span>
+              <span className="text-xs" style={{color: '#6B7280'}}>Secure & Encrypted</span>
             </div>
             <div className="flex items-center gap-1.5">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
