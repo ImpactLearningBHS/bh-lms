@@ -496,11 +496,12 @@ export default function DashboardPage() {
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Contact Email</label>
-                      <input type="email" value={newOrg.email}
-                        onChange={(e) => setNewOrg({...newOrg, email: e.target.value})}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                    </div>
+  <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Phone Number</label>
+  <input type="tel" value={newOrg.email}
+    onChange={(e) => setNewOrg({...newOrg, email: e.target.value})}
+    placeholder="(555) 555-5555"
+    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+</div>
                     <div>
   <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Branch Admin Name</label>
   <input type="text" value={newOrg.adminName}
