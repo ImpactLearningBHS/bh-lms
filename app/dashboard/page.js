@@ -8,7 +8,7 @@ export default function DashboardPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [organizations, setOrganizations] = useState([]);
   const [showAddOrg, setShowAddOrg] = useState(false);
-  const [newOrg, setNewOrg] = useState({name: '', types: [], email: '', status: 'Active'});
+  const [newOrg, setNewOrg] = useState({name: '', types: [], email: '', status: 'Active', adminName: '', adminEmail: ''});
   const [trainings, setTrainings] = useState([]);
   const [completions, setCompletions] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
@@ -184,7 +184,24 @@ export default function DashboardPage() {
     const { data } = await supabase.from('organizations').insert([{
       name: org.name, type: org.types?.join(', '), email: org.email, status: org.status
     }]).select();
-    if (data) setOrganizations([...organizations, data[0]]);
+    if (data) {
+      setOrganizations([...organizations, data[0]]);
+      // Create branch admin user if name and email provided
+      if (org.adminName && org.adminEmail) {
+        await fetch('/api/create-user', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            full_name: org.adminName,
+            email: org.adminEmail,
+            role: 'Branch Admin',
+            hire_date: null,
+            status: 'Active',
+            organization_id: data[0].id
+          })
+        });
+      }
+    }
   };
 
   const navItems = [
@@ -485,6 +502,20 @@ export default function DashboardPage() {
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
                     </div>
                     <div>
+  <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Branch Admin Name</label>
+  <input type="text" value={newOrg.adminName}
+    onChange={(e) => setNewOrg({...newOrg, adminName: e.target.value})}
+    placeholder="Full name"
+    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+</div>
+<div>
+  <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Branch Admin Email</label>
+  <input type="email" value={newOrg.adminEmail}
+    onChange={(e) => setNewOrg({...newOrg, adminEmail: e.target.value})}
+    placeholder="admin@organization.com"
+    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+</div>
+                    <div>
                       <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Status</label>
                       <select value={newOrg.status} onChange={(e) => setNewOrg({...newOrg, status: e.target.value})}
                         className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
@@ -508,7 +539,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="flex gap-3 mt-4">
-                    <button onClick={() => { saveOrganization(newOrg); setNewOrg({name:'',types:[],email:'',status:'Active'}); setShowAddOrg(false); }}
+                    <button onClick={() => { saveOrganization(newOrg); setNewOrg({name:'',types:[],email:'',status:'Active',adminName:'',adminEmail:''}); setShowAddOrg(false); }}
                       className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
                       style={{backgroundColor: '#0D9488'}}>Save Organization</button>
                     <button onClick={() => setShowAddOrg(false)}
