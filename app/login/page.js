@@ -62,9 +62,9 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
 
         {/* Logo area */}
-        <div className="px-8 pt-6 pb-6 text-center border-b border-gray-100">
-  <img src="/ImpactWorkforce.png" alt="Impact Workforce" className="h-20 mx-auto" />
-        </div>
+<div className="border-b border-gray-100" style={{padding: '16px 32px', display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
+  <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '56px', display: 'block', margin: '0 auto'}} />
+</div>
 
         {/* Form area */}
         <div className="px-8 py-7">
