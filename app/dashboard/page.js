@@ -8,7 +8,7 @@ export default function DashboardPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [organizations, setOrganizations] = useState([]);
   const [showAddOrg, setShowAddOrg] = useState(false);
-  const [newOrg, setNewOrg] = useState({name: '', types: [], email: '', status: 'Active', adminName: '', adminEmail: ''});
+  const [newOrg, setNewOrg] = useState({name: '', types: [], phone: '', status: 'Active', adminName: '', adminEmail: ''});
   const [trainings, setTrainings] = useState([]);
   const [completions, setCompletions] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
@@ -182,7 +182,7 @@ export default function DashboardPage() {
 
   const saveOrganization = async (org) => {
     const { data } = await supabase.from('organizations').insert([{
-      name: org.name, type: org.types?.join(', '), email: org.email, status: org.status
+      name: org.name, type: org.types?.join(', '), phone: org.phone, status: org.status
     }]).select();
     if (data) {
       setOrganizations([...organizations, data[0]]);
@@ -497,8 +497,8 @@ export default function DashboardPage() {
                     </div>
                     <div>
   <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Phone Number</label>
-  <input type="tel" value={newOrg.email}
-    onChange={(e) => setNewOrg({...newOrg, email: e.target.value})}
+  <input type="tel" value={newOrg.phone}
+onChange={(e) => setNewOrg({...newOrg, phone: e.target.value})}
     placeholder="(555) 555-5555"
     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
 </div>
@@ -571,7 +571,7 @@ export default function DashboardPage() {
                         <tr key={org.id} className="border-b border-gray-50">
                           <td className="py-3 font-medium" style={{color: '#0D9488'}}>{org.name}</td>
                           <td className="py-3 text-gray-500">{org.type}</td>
-                          <td className="py-3 text-gray-500">{org.email}</td>
+                          <td className="py-3 text-gray-500">{org.phone}</td>
                           <td className="py-3 text-gray-500">{getOrgUserCount(org.id)}</td>
                           <td className="py-3">
                             <span className="px-2 py-1 rounded-full text-xs font-semibold"
