@@ -13,32 +13,18 @@ export default function ManageOrgPage() {
   const [completions, setCompletions] = useState([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
-
-  // Edit org state
   const [editing, setEditing] = useState(false);
   const [editOrg, setEditOrg] = useState({});
-
-  // Assign training state
   const [showAssign, setShowAssign] = useState(false);
   const [assignTrainingId, setAssignTrainingId] = useState('');
   const [assignSuccess, setAssignSuccess] = useState('');
-
-  // Remove staff state
   const [removingStaffId, setRemovingStaffId] = useState(null);
 
-  useEffect(() => {
-    fetchAll();
-  }, [id]);
+  useEffect(() => { fetchAll(); }, [id]);
 
   const fetchAll = async () => {
     setLoading(true);
-    await Promise.all([
-      fetchOrg(),
-      fetchStaff(),
-      fetchTrainings(),
-      fetchAssignments(),
-      fetchCompletions(),
-    ]);
+    await Promise.all([fetchOrg(), fetchStaff(), fetchTrainings(), fetchAssignments(), fetchCompletions()]);
     setLoading(false);
   };
 
@@ -64,20 +50,16 @@ export default function ManageOrgPage() {
 
   const fetchCompletions = async () => {
     const { data: orgStaff } = await supabase.from('users').select('id').eq('organization_id', id);
-    if (orgStaff) {
+    if (orgStaff && orgStaff.length > 0) {
       const staffIds = orgStaff.map(s => s.id);
-      if (staffIds.length > 0) {
-        const { data } = await supabase.from('training_completions').select('*').in('user_id', staffIds);
-        if (data) setCompletions(data);
-      }
+      const { data } = await supabase.from('training_completions').select('*').in('user_id', staffIds);
+      if (data) setCompletions(data);
     }
   };
 
   const saveOrgEdits = async () => {
     const { data } = await supabase.from('organizations').update({
-      name: editOrg.name,
-      email: editOrg.email,
-      status: editOrg.status,
+      name: editOrg.name, email: editOrg.email, status: editOrg.status,
     }).eq('id', id).select();
     if (data) { setOrg(data[0]); setEditing(false); }
   };
@@ -87,27 +69,15 @@ export default function ManageOrgPage() {
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + 30);
     const dueDateStr = dueDate.toISOString().split('T')[0];
-
     const targetTrainings = assignTrainingId === 'all' ? trainings : trainings.filter(t => t.id === assignTrainingId);
-
     const inserts = targetTrainings
       .filter(t => !assignments.some(a => a.training_id === t.id && a.organization_id === id))
-      .map(t => ({
-        training_id: t.id,
-        organization_id: id,
-        due_date: dueDateStr,
-        status: 'Active',
-        assigned_at: new Date().toISOString(),
-      }));
-
+      .map(t => ({ training_id: t.id, organization_id: id, due_date: dueDateStr, status: 'Active', assigned_at: new Date().toISOString() }));
     if (inserts.length === 0) {
       setAssignSuccess('Already assigned!');
     } else {
       const { data } = await supabase.from('training_assignments').insert(inserts).select();
-      if (data) {
-        setAssignments([...assignments, ...data]);
-        setAssignSuccess(`✅ Assigned! Due ${dueDateStr}`);
-      }
+      if (data) { setAssignments([...assignments, ...data]); setAssignSuccess(`✅ Assigned! Due ${dueDateStr}`); }
     }
     setTimeout(() => { setAssignSuccess(''); setShowAssign(false); setAssignTrainingId(''); }, 2500);
   };
@@ -123,18 +93,31 @@ export default function ManageOrgPage() {
     if (!error) setAssignments(assignments.filter(a => a.id !== assignmentId));
   };
 
-  const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'staff', label: `Staff (${staff.length})` },
-    { id: 'trainings', label: `Trainings (${assignments.length})` },
-    { id: 'completions', label: `Completions (${completions.length})` },
-  ];
+  const getComplianceRate = (trainingId) => {
+    if (staff.length === 0) return 0;
+    const completed = completions.filter(c => c.training_id === trainingId).length;
+    return Math.round((completed / staff.length) * 100);
+  };
+
+  const overdueCount = assignments.filter(a => {
+    return a.due_date && new Date(a.due_date) < new Date() &&
+      !completions.some(c => c.training_id === a.training_id);
+  }).length;
+
+  const orgInitials = org?.name?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || 'ORG';
 
   const statusStyle = (status) => {
     if (status === 'Active') return { bg: '#DCFCE7', color: '#16A34A' };
     if (status === 'Inactive') return { bg: '#FEE2E2', color: '#DC2626' };
     return { bg: '#FEF9C3', color: '#CA8A04' };
   };
+
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'staff', label: `Staff (${staff.length})` },
+    { id: 'trainings', label: `Trainings (${assignments.length})` },
+    { id: 'completions', label: `Completions (${completions.length})` },
+  ];
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#F9FAFB'}}>
@@ -156,278 +139,357 @@ export default function ManageOrgPage() {
           </button>
           <button onClick={() => window.location.href = '/login'}
             className="text-sm font-medium px-4 py-2 rounded-lg text-white"
-            style={{backgroundColor: '#0D9488'}}>
-            Log Out
-          </button>
+            style={{backgroundColor: '#0D9488'}}>Log Out</button>
         </div>
       </div>
 
-      <div className="flex-1 p-8" style={{backgroundColor: '#F9FAFB'}}>
+      <div className="flex flex-1">
 
-        {/* Page header */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold" style={{color: '#0D2035'}}>{org?.name}</h1>
-            <p className="text-sm mt-1" style={{color: '#6B7280'}}>{org?.email} · {org?.type}</p>
+        {/* Sidebar */}
+        <div className="w-64 flex flex-col py-6 px-4 gap-1" style={{backgroundColor: '#0D2035'}}>
+          <div className="px-4 mb-6 pb-6 border-b border-white/10">
+            <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Managing Org</p>
+            <p className="text-sm font-bold text-white">{org?.name}</p>
           </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => window.location.href = `/branch?impersonate_org=${id}&org_name=${encodeURIComponent(org?.name || '')}`}
-              className="text-sm font-semibold px-4 py-2 rounded-lg"
-              style={{backgroundColor: '#F3F4F6', color: '#0D2035'}}>
-              Impersonate
-            </button>
-            <button
-              onClick={() => setEditing(true)}
-              className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-              style={{backgroundColor: '#0D9488'}}>
-              Edit Org
-            </button>
-          </div>
-        </div>
-
-        {/* Edit modal */}
-        {editing && (
-          <div className="fixed inset-0 z-50 flex items-center justify-content-center" style={{backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-            <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-              <h2 className="text-lg font-bold mb-6" style={{color: '#0D2035'}}>Edit Organization</h2>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Organization Name</label>
-                  <input type="text" value={editOrg.name || ''}
-                    onChange={(e) => setEditOrg({...editOrg, name: e.target.value})}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Contact Email</label>
-                  <input type="email" value={editOrg.email || ''}
-                    onChange={(e) => setEditOrg({...editOrg, email: e.target.value})}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Status</label>
-                  <select value={editOrg.status || 'Active'}
-                    onChange={(e) => setEditOrg({...editOrg, status: e.target.value})}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
-                    <option>Active</option>
-                    <option>Inactive</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <button onClick={saveOrgEdits}
-                  className="flex-1 py-2 rounded-lg text-white font-semibold text-sm"
-                  style={{backgroundColor: '#0D9488'}}>Save Changes</button>
-                <button onClick={() => setEditing(false)}
-                  className="flex-1 py-2 rounded-lg text-gray-500 bg-gray-100 font-semibold text-sm">Cancel</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Assign Training modal */}
-        {showAssign && (
-          <div className="fixed inset-0 z-50" style={{backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-            <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-              <h2 className="text-lg font-bold mb-2" style={{color: '#0D2035'}}>⚡ Assign Training</h2>
-              <p className="text-sm mb-6" style={{color: '#6B7280'}}>Assigning to {org?.name} — due in 30 days.</p>
-              <div>
-                <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Select Training</label>
-                <select value={assignTrainingId}
-                  onChange={(e) => setAssignTrainingId(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
-                  <option value="">-- Choose a training --</option>
-                  <option value="all">⚡ All Trainings</option>
-                  {trainings.map(t => (
-                    <option key={t.id} value={t.id}>{t.title}</option>
-                  ))}
-                </select>
-              </div>
-              {assignSuccess && (
-                <div className="mt-4 rounded-lg p-3" style={{backgroundColor: '#F0FDF4', border: '1px solid #86EFAC'}}>
-                  <p className="text-sm font-medium" style={{color: '#16A34A'}}>{assignSuccess}</p>
-                </div>
-              )}
-              <div className="flex gap-3 mt-6">
-                <button onClick={assignTraining}
-                  disabled={!assignTrainingId}
-                  className="flex-1 py-2 rounded-lg text-white font-semibold text-sm"
-                  style={{backgroundColor: assignTrainingId ? '#0D9488' : '#D1D5DB'}}>
-                  Assign
-                </button>
-                <button onClick={() => { setShowAssign(false); setAssignTrainingId(''); }}
-                  className="flex-1 py-2 rounded-lg text-gray-500 bg-gray-100 font-semibold text-sm">Cancel</button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="flex gap-1 mb-6 border-b border-gray-200">
+          <p className="text-xs font-semibold uppercase px-4 mb-2" style={{color: '#6B7280'}}>Sections</p>
           {tabs.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className="px-4 py-2 text-sm font-medium transition-colors"
+              className="text-left px-4 py-3 text-sm transition-colors rounded-lg"
               style={{
-                borderBottom: activeTab === tab.id ? '2px solid #0D9488' : '2px solid transparent',
-                color: activeTab === tab.id ? '#0D9488' : '#6B7280',
-                marginBottom: '-1px',
+                borderLeft: activeTab === tab.id ? '4px solid #0D9488' : '4px solid transparent',
+                color: activeTab === tab.id ? '#0D9488' : '#9CA3AF',
+                fontWeight: activeTab === tab.id ? '700' : '500',
+                backgroundColor: activeTab === tab.id ? 'rgba(13,148,136,0.1)' : 'transparent'
               }}>
               {tab.label}
             </button>
           ))}
+          <div className="mt-auto px-4 pt-6 border-t border-white/10">
+            <button onClick={() => window.location.href = '/dashboard'}
+              className="text-sm font-medium w-full text-left" style={{color: '#6B7280'}}>
+              ← Back to Dashboard
+            </button>
+          </div>
         </div>
 
-        {/* ── OVERVIEW ── */}
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-4 gap-4">
-            {[
-              { label: 'Total Staff', value: staff.length },
-              { label: 'Trainings Assigned', value: assignments.length },
-              { label: 'Completions', value: completions.length },
-              { label: 'Status', value: org?.status || 'Active', isStatus: true },
-            ].map(stat => (
-              <div key={stat.label} className="bg-white rounded-xl shadow p-5">
-                <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>{stat.label}</p>
-                {stat.isStatus ? (
-                  <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                    style={{backgroundColor: statusStyle(stat.value).bg, color: statusStyle(stat.value).color}}>
-                    {stat.value}
-                  </span>
-                ) : (
-                  <p className="text-3xl font-bold" style={{color: '#0D2035'}}>{stat.value}</p>
-                )}
+        {/* Main Content */}
+        <div className="flex-1 p-8" style={{backgroundColor: '#F9FAFB'}}>
+
+          {/* Org Header Card */}
+          <div className="rounded-2xl p-6 mb-6 flex items-center justify-between" style={{backgroundColor: '#0D2035'}}>
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl flex items-center justify-center text-xl font-bold"
+                style={{backgroundColor: 'rgba(13,148,136,0.2)', color: '#0D9488'}}>
+                {orgInitials}
               </div>
-            ))}
-          </div>
-        )}
-
-        {/* ── STAFF ── */}
-        {activeTab === 'staff' && (
-          <div className="bg-white rounded-xl shadow p-6">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
-                  <th className="text-left pb-3">Name</th>
-                  <th className="text-left pb-3">Email</th>
-                  <th className="text-left pb-3">Role</th>
-                  <th className="text-left pb-3">Status</th>
-                  <th className="text-left pb-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {staff.length === 0 ? (
-                  <tr><td colSpan="5" className="py-6 text-center" style={{color: '#6B7280'}}>No staff yet.</td></tr>
-                ) : staff.map(member => (
-                  <tr key={member.id} className="border-b border-gray-50">
-                    <td className="py-3 font-medium" style={{color: '#0D9488'}}>{member.full_name}</td>
-                    <td className="py-3 text-gray-500">{member.email}</td>
-                    <td className="py-3 text-gray-500">{member.role}</td>
-                    <td className="py-3">
-                      <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                        style={{
-                          backgroundColor: member.status === 'Active' ? '#DCFCE7' : '#FEE2E2',
-                          color: member.status === 'Active' ? '#16A34A' : '#DC2626'
-                        }}>
-                        {member.status}
-                      </span>
-                    </td>
-                    <td className="py-3">
-                      {removingStaffId === member.id ? (
-                        <div className="flex gap-2">
-                          <button onClick={() => removeStaff(member.id)}
-                            className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
-                            style={{backgroundColor: '#DC2626'}}>Confirm</button>
-                          <button onClick={() => setRemovingStaffId(null)}
-                            className="text-xs font-semibold px-3 py-1 rounded-lg text-gray-500 bg-gray-100">Cancel</button>
-                        </div>
-                      ) : (
-                        <button onClick={() => setRemovingStaffId(member.id)}
-                          className="text-xs font-semibold px-3 py-1 rounded-lg"
-                          style={{backgroundColor: '#FEE2E2', color: '#DC2626'}}>Remove</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* ── TRAININGS ── */}
-        {activeTab === 'trainings' && (
-          <div>
-            <div className="flex justify-end mb-4">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-xl font-bold text-white">{org?.name}</h1>
+                  <span className="px-2 py-1 rounded-full text-xs font-semibold"
+                    style={{backgroundColor: statusStyle(org?.status).bg, color: statusStyle(org?.status).color}}>
+                    {org?.status || 'Active'}
+                  </span>
+                </div>
+                <p className="text-sm mt-1" style={{color: '#6B7280'}}>{org?.email} · {org?.type}</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => window.location.href = `/branch?impersonate_org=${id}&org_name=${encodeURIComponent(org?.name || '')}`}
+                className="text-sm font-semibold px-4 py-2 rounded-lg"
+                style={{backgroundColor: 'rgba(255,255,255,0.1)', color: 'white'}}>
+                Impersonate
+              </button>
+              <button onClick={() => setEditing(true)}
+                className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
+                style={{backgroundColor: '#0D9488'}}>
+                Edit Org
+              </button>
               <button onClick={() => setShowAssign(true)}
                 className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                style={{backgroundColor: '#0D9488'}}>⚡ Assign Training</button>
+                style={{backgroundColor: '#0D9488'}}>
+                ⚡ Assign Training
+              </button>
             </div>
+          </div>
+
+          {/* Edit Modal */}
+          {editing && (
+            <div className="fixed inset-0 z-50" style={{backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+              <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+                <h2 className="text-lg font-bold mb-6" style={{color: '#0D2035'}}>Edit Organization</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Organization Name</label>
+                    <input type="text" value={editOrg.name || ''}
+                      onChange={(e) => setEditOrg({...editOrg, name: e.target.value})}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Contact Email</label>
+                    <input type="email" value={editOrg.email || ''}
+                      onChange={(e) => setEditOrg({...editOrg, email: e.target.value})}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Status</label>
+                    <select value={editOrg.status || 'Active'}
+                      onChange={(e) => setEditOrg({...editOrg, status: e.target.value})}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+                      <option>Active</option>
+                      <option>Inactive</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button onClick={saveOrgEdits}
+                    className="flex-1 py-2 rounded-lg text-white font-semibold text-sm"
+                    style={{backgroundColor: '#0D9488'}}>Save Changes</button>
+                  <button onClick={() => setEditing(false)}
+                    className="flex-1 py-2 rounded-lg text-gray-500 bg-gray-100 font-semibold text-sm">Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Assign Modal */}
+          {showAssign && (
+            <div className="fixed inset-0 z-50" style={{backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+              <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+                <h2 className="text-lg font-bold mb-2" style={{color: '#0D2035'}}>⚡ Assign Training</h2>
+                <p className="text-sm mb-6" style={{color: '#6B7280'}}>Assigning to {org?.name} — due in 30 days.</p>
+                <div>
+                  <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Select Training</label>
+                  <select value={assignTrainingId} onChange={(e) => setAssignTrainingId(e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+                    <option value="">-- Choose a training --</option>
+                    <option value="all">⚡ All Trainings</option>
+                    {trainings.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                  </select>
+                </div>
+                {assignSuccess && (
+                  <div className="mt-4 rounded-lg p-3" style={{backgroundColor: '#F0FDF4', border: '1px solid #86EFAC'}}>
+                    <p className="text-sm font-medium" style={{color: '#16A34A'}}>{assignSuccess}</p>
+                  </div>
+                )}
+                <div className="flex gap-3 mt-6">
+                  <button onClick={assignTraining} disabled={!assignTrainingId}
+                    className="flex-1 py-2 rounded-lg text-white font-semibold text-sm"
+                    style={{backgroundColor: assignTrainingId ? '#0D9488' : '#D1D5DB'}}>Assign</button>
+                  <button onClick={() => { setShowAssign(false); setAssignTrainingId(''); }}
+                    className="flex-1 py-2 rounded-lg text-gray-500 bg-gray-100 font-semibold text-sm">Cancel</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── OVERVIEW ── */}
+          {activeTab === 'overview' && (
+            <div>
+              {/* Stat cards */}
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                {[
+                  { label: 'Total Staff', value: staff.length, sub: `${staff.filter(s => s.status === 'Active').length} active`, accent: '#0D9488' },
+                  { label: 'Trainings Assigned', value: assignments.length, sub: assignments[0]?.due_date ? `Due ${assignments[0].due_date}` : 'No due date', accent: '#7C3AED' },
+                  { label: 'Completions', value: completions.length, sub: staff.length > 0 ? `${Math.round((completions.length / Math.max(assignments.length * staff.length, 1)) * 100)}% rate` : '—', accent: '#16A34A' },
+                  { label: 'Overdue', value: overdueCount, sub: overdueCount === 0 ? 'All on track' : 'Need attention', accent: overdueCount > 0 ? '#DC2626' : '#6B7280' },
+                ].map(stat => (
+                  <div key={stat.label} className="bg-white rounded-xl shadow p-5"
+                    style={{borderLeft: `4px solid ${stat.accent}`}}>
+                    <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>{stat.label}</p>
+                    <p className="text-3xl font-bold mb-1" style={{color: stat.label === 'Overdue' && stat.value > 0 ? '#DC2626' : '#0D2035'}}>{stat.value}</p>
+                    <p className="text-xs" style={{color: stat.accent}}>{stat.sub}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bottom two columns */}
+              <div className="grid grid-cols-2 gap-6">
+
+                {/* Recent Activity */}
+                <div className="bg-white rounded-xl shadow p-6">
+                  <h2 className="text-base font-bold mb-4" style={{color: '#0D2035'}}>Recent Activity</h2>
+                  {completions.length === 0 ? (
+                    <p className="text-sm" style={{color: '#6B7280'}}>No activity yet.</p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {[...completions].reverse().slice(0, 5).map(c => (
+                        <li key={c.id} className="flex items-start gap-3">
+                          <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{backgroundColor: '#0D9488'}}></span>
+                          <div>
+                            <p className="text-sm font-medium" style={{color: '#0D2035'}}>
+                              {c.staff_name} completed "{c.training_title}"
+                            </p>
+                            <p className="text-xs" style={{color: '#6B7280'}}>{c.completed_date}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Training Compliance */}
+                <div className="bg-white rounded-xl shadow p-6">
+                  <h2 className="text-base font-bold mb-4" style={{color: '#0D2035'}}>Training Compliance</h2>
+                  {assignments.length === 0 ? (
+                    <p className="text-sm" style={{color: '#6B7280'}}>No trainings assigned yet.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {assignments.map(a => {
+                        const training = trainings.find(t => t.id === a.training_id);
+                        const rate = getComplianceRate(a.training_id);
+                        return (
+                          <div key={a.id}>
+                            <div className="flex justify-between mb-1">
+                              <span className="text-sm font-medium" style={{color: '#0D2035'}}>{training?.title || '—'}</span>
+                              <span className="text-sm font-bold" style={{color: rate === 100 ? '#16A34A' : '#0D9488'}}>
+                                {completions.filter(c => c.training_id === a.training_id).length}/{staff.length}
+                              </span>
+                            </div>
+                            <div className="rounded-full h-2" style={{backgroundColor: '#F3F4F6'}}>
+                              <div className="h-2 rounded-full transition-all"
+                                style={{width: `${rate}%`, backgroundColor: rate === 100 ? '#16A34A' : '#0D9488'}}></div>
+                            </div>
+                            <p className="text-xs mt-1" style={{color: '#6B7280'}}>{rate}% complete</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* ── STAFF ── */}
+          {activeTab === 'staff' && (
             <div className="bg-white rounded-xl shadow p-6">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
-                    <th className="text-left pb-3">Training</th>
-                    <th className="text-left pb-3">Due Date</th>
-                    <th className="text-left pb-3">Assigned At</th>
+                    <th className="text-left pb-3">Name</th>
+                    <th className="text-left pb-3">Email</th>
+                    <th className="text-left pb-3">Role</th>
                     <th className="text-left pb-3">Status</th>
                     <th className="text-left pb-3">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {assignments.length === 0 ? (
-                    <tr><td colSpan="5" className="py-6 text-center" style={{color: '#6B7280'}}>No trainings assigned yet.</td></tr>
-                  ) : assignments.map(a => {
-                    const training = trainings.find(t => t.id === a.training_id);
-                    return (
-                      <tr key={a.id} className="border-b border-gray-50">
-                        <td className="py-3 font-medium" style={{color: '#0D9488'}}>{training?.title || '—'}</td>
-                        <td className="py-3 text-gray-500">{a.due_date}</td>
-                        <td className="py-3 text-gray-500">{a.assigned_at ? new Date(a.assigned_at).toLocaleDateString() : '—'}</td>
-                        <td className="py-3">
-                          <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                            style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}>
-                            {a.status || 'Active'}
-                          </span>
-                        </td>
-                        <td className="py-3">
-                          <button onClick={() => removeAssignment(a.id)}
+                  {staff.length === 0 ? (
+                    <tr><td colSpan="5" className="py-6 text-center" style={{color: '#6B7280'}}>No staff yet.</td></tr>
+                  ) : staff.map(member => (
+                    <tr key={member.id} className="border-b border-gray-50">
+                      <td className="py-3 font-medium" style={{color: '#0D9488'}}>{member.full_name}</td>
+                      <td className="py-3 text-gray-500">{member.email}</td>
+                      <td className="py-3 text-gray-500">{member.role}</td>
+                      <td className="py-3">
+                        <span className="px-2 py-1 rounded-full text-xs font-semibold"
+                          style={{backgroundColor: member.status === 'Active' ? '#DCFCE7' : '#FEE2E2',
+                            color: member.status === 'Active' ? '#16A34A' : '#DC2626'}}>
+                          {member.status}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        {removingStaffId === member.id ? (
+                          <div className="flex gap-2">
+                            <button onClick={() => removeStaff(member.id)}
+                              className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
+                              style={{backgroundColor: '#DC2626'}}>Confirm</button>
+                            <button onClick={() => setRemovingStaffId(null)}
+                              className="text-xs font-semibold px-3 py-1 rounded-lg text-gray-500 bg-gray-100">Cancel</button>
+                          </div>
+                        ) : (
+                          <button onClick={() => setRemovingStaffId(member.id)}
                             className="text-xs font-semibold px-3 py-1 rounded-lg"
                             style={{backgroundColor: '#FEE2E2', color: '#DC2626'}}>Remove</button>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                        )}
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ── COMPLETIONS ── */}
-        {activeTab === 'completions' && (
-          <div className="bg-white rounded-xl shadow p-6">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
-                  <th className="text-left pb-3">Staff Member</th>
-                  <th className="text-left pb-3">Training</th>
-                  <th className="text-left pb-3">Completed Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {completions.length === 0 ? (
-                  <tr><td colSpan="3" className="py-6 text-center" style={{color: '#6B7280'}}>No completions yet.</td></tr>
-                ) : completions.map(c => (
-                  <tr key={c.id} className="border-b border-gray-50">
-                    <td className="py-3 font-medium" style={{color: '#0D9488'}}>{c.staff_name}</td>
-                    <td className="py-3 text-gray-500">{c.training_title}</td>
-                    <td className="py-3 text-gray-500">{c.completed_date}</td>
+          {/* ── TRAININGS ── */}
+          {activeTab === 'trainings' && (
+            <div>
+              <div className="flex justify-end mb-4">
+                <button onClick={() => setShowAssign(true)}
+                  className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
+                  style={{backgroundColor: '#0D9488'}}>⚡ Assign Training</button>
+              </div>
+              <div className="bg-white rounded-xl shadow p-6">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
+                      <th className="text-left pb-3">Training</th>
+                      <th className="text-left pb-3">Due Date</th>
+                      <th className="text-left pb-3">Assigned At</th>
+                      <th className="text-left pb-3">Compliance</th>
+                      <th className="text-left pb-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assignments.length === 0 ? (
+                      <tr><td colSpan="5" className="py-6 text-center" style={{color: '#6B7280'}}>No trainings assigned yet.</td></tr>
+                    ) : assignments.map(a => {
+                      const training = trainings.find(t => t.id === a.training_id);
+                      const rate = getComplianceRate(a.training_id);
+                      return (
+                        <tr key={a.id} className="border-b border-gray-50">
+                          <td className="py-3 font-medium" style={{color: '#0D9488'}}>{training?.title || '—'}</td>
+                          <td className="py-3 text-gray-500">{a.due_date}</td>
+                          <td className="py-3 text-gray-500">{a.assigned_at ? new Date(a.assigned_at).toLocaleDateString() : '—'}</td>
+                          <td className="py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 h-2 rounded-full" style={{backgroundColor: '#F3F4F6'}}>
+                                <div className="h-2 rounded-full" style={{width: `${rate}%`, backgroundColor: rate === 100 ? '#16A34A' : '#0D9488'}}></div>
+                              </div>
+                              <span className="text-xs" style={{color: '#6B7280'}}>{rate}%</span>
+                            </div>
+                          </td>
+                          <td className="py-3">
+                            <button onClick={() => removeAssignment(a.id)}
+                              className="text-xs font-semibold px-3 py-1 rounded-lg"
+                              style={{backgroundColor: '#FEE2E2', color: '#DC2626'}}>Remove</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── COMPLETIONS ── */}
+          {activeTab === 'completions' && (
+            <div className="bg-white rounded-xl shadow p-6">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
+                    <th className="text-left pb-3">Staff Member</th>
+                    <th className="text-left pb-3">Training</th>
+                    <th className="text-left pb-3">Completed Date</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {completions.length === 0 ? (
+                    <tr><td colSpan="3" className="py-6 text-center" style={{color: '#6B7280'}}>No completions yet.</td></tr>
+                  ) : completions.map(c => (
+                    <tr key={c.id} className="border-b border-gray-50">
+                      <td className="py-3 font-medium" style={{color: '#0D9488'}}>{c.staff_name}</td>
+                      <td className="py-3 text-gray-500">{c.training_title}</td>
+                      <td className="py-3 text-gray-500">{c.completed_date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
+        </div>
       </div>
     </div>
   );
