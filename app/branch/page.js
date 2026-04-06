@@ -17,26 +17,16 @@ export default function BranchPage() {
   const [completions, setCompletions] = useState([]);
   const [newStaff, setNewStaff] = useState({full_name: '', email: '', role: 'Therapist', hire_date: '', status: 'Active'});
 
-  useEffect(() => {
-    checkBranchAuth();
-  }, []);
+  useEffect(() => { checkBranchAuth(); }, []);
 
   const checkBranchAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      window.location.href = '/login';
-      return;
-    }
-
+    if (!user) { window.location.href = '/login'; return; }
     setIsAuthorized(true);
-
-    // Check if impersonating via URL params
     const params = new URLSearchParams(window.location.search);
     const impersonateOrgId = params.get('impersonate_org');
     const impersonateOrgName = params.get('org_name');
-
     if (impersonateOrgId) {
-      // Impersonation mode — use the org from the URL
       setIsImpersonating(true);
       setOrgId(impersonateOrgId);
       setOrgName(decodeURIComponent(impersonateOrgName || 'Organization'));
@@ -45,7 +35,6 @@ export default function BranchPage() {
       fetchTrainings();
       fetchCompletions(impersonateOrgId);
     } else {
-      // Normal mode — look up the logged-in user's org
       await fetchCurrentUser();
     }
   };
@@ -53,11 +42,7 @@ export default function BranchPage() {
   const fetchCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data } = await supabase
-        .from('users')
-        .select('*, organizations(name)')
-        .eq('auth_id', user.id)
-        .single();
+      const { data } = await supabase.from('users').select('*, organizations(name)').eq('auth_id', user.id).single();
       if (data) {
         setCurrentUser(data);
         setOrgId(data.organization_id);
@@ -72,11 +57,7 @@ export default function BranchPage() {
 
   const fetchStaff = async (oId) => {
     if (!oId) return;
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .eq('organization_id', oId)
-      .neq('role', 'Platform Admin');
+    const { data } = await supabase.from('users').select('*').eq('organization_id', oId).neq('role', 'Platform Admin');
     if (data) setStaff(data);
   };
 
@@ -87,26 +68,16 @@ export default function BranchPage() {
 
   const fetchAssignments = async (oId) => {
     if (!oId) return;
-    const { data } = await supabase
-      .from('training_assignments')
-      .select('*')
-      .eq('organization_id', oId)
-      .eq('status', 'Active');
+    const { data } = await supabase.from('training_assignments').select('*').eq('organization_id', oId).eq('status', 'Active');
     if (data) setAssignments(data);
   };
 
   const fetchCompletions = async (oId) => {
     if (!oId) return;
-    const { data: orgStaff } = await supabase
-      .from('users')
-      .select('id')
-      .eq('organization_id', oId);
+    const { data: orgStaff } = await supabase.from('users').select('id').eq('organization_id', oId);
     if (orgStaff && orgStaff.length > 0) {
       const staffIds = orgStaff.map(s => s.id);
-      const { data } = await supabase
-        .from('training_completions')
-        .select('*')
-        .in('user_id', staffIds);
+      const { data } = await supabase.from('training_completions').select('*').in('user_id', staffIds);
       if (data) setCompletions(data);
     }
   };
@@ -115,28 +86,34 @@ export default function BranchPage() {
     const assignedTrainingIds = assignments.map(a => a.training_id);
     const assignedTrainings = trainings.filter(t => assignedTrainingIds.includes(t.id));
     const directCareRoles = ['Therapist', 'BHT', 'PMHNP', 'Clinical Supervisor', 'Peer Support Specialist', 'PRP Case Worker'];
-    if (directCareRoles.includes(role)) {
-      return assignedTrainings;
-    } else {
-      return assignedTrainings.filter(t => t.category === 'All Staff');
-    }
+    return directCareRoles.includes(role) ? assignedTrainings : assignedTrainings.filter(t => t.category === 'All Staff');
   };
 
+  const getTrainingCompletionRate = (trainingId) => {
+    if (staff.length === 0) return 0;
+    const completed = completions.filter(c => c.training_id === trainingId).length;
+    return Math.round((completed / staff.length) * 100);
+  };
+
+  const getStaffCompletionCount = (staffId) => completions.filter(c => c.user_id === staffId).length;
+
+  const getInitials = (name) => name?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || '??';
+
+  const chartColors = ['#0D9488', '#7C3AED', '#EA580C', '#16A34A', '#0284C7', '#DB2777'];
+
+  const overdueAssignments = assignments.filter(a =>
+    a.due_date && new Date(a.due_date) < new Date() &&
+    !completions.some(c => c.training_id === a.training_id)
+  );
+
   const saveStaff = async (member) => {
-    if (!orgId) {
-      alert('Error: Could not determine your organization. Please refresh and try again.');
-      return;
-    }
+    if (!orgId) { alert('Error: Could not determine your organization.'); return; }
     const response = await fetch('/api/create-user', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        full_name: member.full_name,
-        email: member.email,
-        role: member.role,
-        hire_date: member.hire_date,
-        status: member.status,
-        organization_id: orgId
+        full_name: member.full_name, email: member.email, role: member.role,
+        hire_date: member.hire_date, status: member.status, organization_id: orgId
       })
     });
     const result = await response.json();
@@ -153,68 +130,7 @@ export default function BranchPage() {
     const win = window.open('', '_blank');
     const completionDate = new Date(completion.completed_date).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
     const expiryDate = new Date(new Date(completion.completed_date).setFullYear(new Date(completion.completed_date).getFullYear() + 1)).toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'});
-    win.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Certificate of Completion</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Georgia, serif; background: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 30px; }
-          .certificate { border: 8px solid #0D2035; border-radius: 16px; padding: 48px 40px; width: 100%; max-width: 600px; text-align: center; position: relative; overflow: hidden; background: white; }
-          .bg-shapes { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-          .inner-box { border: 2px solid #0D9488; border-radius: 10px; padding: 36px 48px; position: relative; background: rgba(250,250,247,0.75); }
-          .logo-area { margin-bottom: 14px; }
-          .logo-area img { height: 44px; object-fit: contain; }
-          .subtitle { font-family: Arial, sans-serif; font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: #6B7280; margin-bottom: 10px; }
-          h1 { font-size: 30px; color: #0D2035; margin-bottom: 4px; }
-          .divider { width: 60px; height: 3px; background: #0D9488; margin: 12px auto; border-radius: 2px; }
-          .main-content { display: flex; flex-direction: column; align-items: center; gap: 16px; margin: 18px 0; }
-          .separator { width: 60px; height: 2px; background: #0D9488; opacity: 0.4; }
-          .label { font-family: Arial, sans-serif; font-size: 10px; color: #6B7280; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
-          .staff-name { font-size: 28px; color: #0D2035; font-style: italic; }
-          .training-title { font-size: 18px; font-weight: bold; color: #0D9488; font-family: Arial, sans-serif; }
-          .details { display: flex; justify-content: space-around; margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(13,148,136,0.3); font-family: Arial, sans-serif; }
-          .detail-label { font-size: 9px; text-transform: uppercase; letter-spacing: 2px; color: #6B7280; margin-bottom: 4px; }
-          .detail-value { font-size: 13px; color: #0D2035; font-weight: bold; }
-          .watermark { position: absolute; bottom: 14px; right: 24px; font-family: Arial, sans-serif; font-size: 9px; color: #D1D5DB; letter-spacing: 1px; }
-          @media print { body { padding: 0; } .certificate { border-width: 6px; } }
-        </style>
-      </head>
-      <body>
-        <div class="certificate">
-          <svg class="bg-shapes" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="5%" cy="20%" r="90" fill="#0D9488" opacity="0.2"/>
-            <circle cx="95%" cy="80%" r="110" fill="#0D2035" opacity="0.15"/>
-            <circle cx="92%" cy="10%" r="60" fill="#0D9488" opacity="0.18"/>
-            <circle cx="8%" cy="90%" r="70" fill="#0D2035" opacity="0.12"/>
-            <rect x="80%" y="20%" width="90" height="90" rx="12" fill="#0D9488" opacity="0.15" transform="rotate(25 85 40)"/>
-            <rect x="1%" y="40%" width="70" height="70" rx="12" fill="#0D2035" opacity="0.12" transform="rotate(-20 30 70)"/>
-            <circle cx="93%" cy="45%" r="25" fill="#0D9488" opacity="0.18"/>
-            <circle cx="7%" cy="55%" r="20" fill="#0D9488" opacity="0.15"/>
-          </svg>
-          <div class="inner-box">
-            <div class="logo-area"><img src="${window.location.origin}/ImpactWorkforce.png" alt="Impact Workforce" /></div>
-            <p class="subtitle">Certificate of Completion</p>
-            <h1>Achievement Award</h1>
-            <div class="divider"></div>
-            <div class="main-content">
-              <div><p class="label">This certifies that</p><p class="staff-name">${completion.staff_name}</p></div>
-              <div class="separator"></div>
-              <div><p class="label">Has successfully completed</p><p class="training-title">${completion.training_title}</p></div>
-            </div>
-            <div class="details">
-              <div><p class="detail-label">Organization</p><p class="detail-value">${orgName}</p></div>
-              <div><p class="detail-label">Completion Date</p><p class="detail-value">${completionDate}</p></div>
-              <div><p class="detail-label">Valid Through</p><p class="detail-value">${expiryDate}</p></div>
-            </div>
-          </div>
-          <p class="watermark">Impact Workforce Systems LLC © ${new Date().getFullYear()}</p>
-        </div>
-        <script>window.onload = () => window.print();</script>
-      </body>
-      </html>
-    `);
+    win.document.write(`<!DOCTYPE html><html><head><title>Certificate</title><style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:Georgia,serif;background:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:30px;}.certificate{border:8px solid #0D2035;border-radius:16px;padding:48px 40px;width:100%;max-width:600px;text-align:center;position:relative;overflow:hidden;background:white;}.bg-shapes{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}.inner-box{border:2px solid #0D9488;border-radius:10px;padding:36px 48px;position:relative;background:rgba(250,250,247,0.75);}.logo-area{margin-bottom:14px;}.logo-area img{height:44px;object-fit:contain;}h1{font-size:30px;color:#0D2035;margin-bottom:4px;}.subtitle{font-family:Arial,sans-serif;font-size:10px;letter-spacing:4px;text-transform:uppercase;color:#6B7280;margin-bottom:10px;}.divider{width:60px;height:3px;background:#0D9488;margin:12px auto;border-radius:2px;}.main-content{display:flex;flex-direction:column;align-items:center;gap:16px;margin:18px 0;}.separator{width:60px;height:2px;background:#0D9488;opacity:0.4;}.label{font-family:Arial,sans-serif;font-size:10px;color:#6B7280;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;}.staff-name{font-size:28px;color:#0D2035;font-style:italic;}.training-title{font-size:18px;font-weight:bold;color:#0D9488;font-family:Arial,sans-serif;}.details{display:flex;justify-content:space-around;margin-top:20px;padding-top:16px;border-top:1px solid rgba(13,148,136,0.3);font-family:Arial,sans-serif;}.detail-label{font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#6B7280;margin-bottom:4px;}.detail-value{font-size:13px;color:#0D2035;font-weight:bold;}.watermark{position:absolute;bottom:14px;right:24px;font-family:Arial,sans-serif;font-size:9px;color:#D1D5DB;}@media print{body{padding:0;}}</style></head><body><div class="certificate"><svg class="bg-shapes" xmlns="http://www.w3.org/2000/svg"><circle cx="5%" cy="20%" r="90" fill="#0D9488" opacity="0.2"/><circle cx="95%" cy="80%" r="110" fill="#0D2035" opacity="0.15"/><circle cx="92%" cy="10%" r="60" fill="#0D9488" opacity="0.18"/><circle cx="8%" cy="90%" r="70" fill="#0D2035" opacity="0.12"/></svg><div class="inner-box"><div class="logo-area"><img src="${window.location.origin}/ImpactWorkforce.png" alt="Impact Workforce"/></div><p class="subtitle">Certificate of Completion</p><h1>Achievement Award</h1><div class="divider"></div><div class="main-content"><div><p class="label">This certifies that</p><p class="staff-name">${completion.staff_name}</p></div><div class="separator"></div><div><p class="label">Has successfully completed</p><p class="training-title">${completion.training_title}</p></div></div><div class="details"><div><p class="detail-label">Organization</p><p class="detail-value">${orgName}</p></div><div><p class="detail-label">Completion Date</p><p class="detail-value">${completionDate}</p></div><div><p class="detail-label">Valid Through</p><p class="detail-value">${expiryDate}</p></div></div></div><p class="watermark">Impact Workforce Systems LLC © ${new Date().getFullYear()}</p></div><script>window.onload=()=>window.print();</script></body></html>`);
     win.document.close();
   };
 
@@ -225,11 +141,7 @@ export default function BranchPage() {
     { id: 'completions', label: 'Completions' },
   ];
 
-  const roles = [
-    'Therapist', 'BHT', 'PMHNP', 'Clinical Supervisor',
-    'Peer Support Specialist', 'PRP Case Worker',
-    'Administration', 'Compliance Officer', 'Billing Specialist', 'Other'
-  ];
+  const roles = ['Therapist','BHT','PMHNP','Clinical Supervisor','Peer Support Specialist','PRP Case Worker','Administration','Compliance Officer','Billing Specialist','Other'];
 
   if (!isAuthorized) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -254,9 +166,7 @@ export default function BranchPage() {
           {isImpersonating ? (
             <button onClick={() => window.location.href = '/dashboard'}
               className="text-sm font-medium px-4 py-2 rounded-lg text-white"
-              style={{backgroundColor: '#7C3AED'}}>
-              ← Exit Impersonation
-            </button>
+              style={{backgroundColor: '#7C3AED'}}>← Exit Impersonation</button>
           ) : (
             <button onClick={() => window.location.href = '/login'}
               className="text-sm font-medium px-4 py-2 rounded-lg text-white"
@@ -270,10 +180,11 @@ export default function BranchPage() {
         {/* Sidebar */}
         <div className="w-64 flex flex-col py-6 px-4 gap-1" style={{backgroundColor: '#0D2035'}}>
           <div className="px-4 mb-6 pb-6 border-b border-white/10">
-            <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>
-              {isImpersonating ? 'Impersonating' : 'Branch Admin'}
-            </p>
+            <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>{isImpersonating ? 'Impersonating' : 'Branch Admin'}</p>
             <p className="text-sm font-bold text-white">{orgName}</p>
+            {currentUser?.full_name && !isImpersonating && (
+              <p className="text-xs mt-1" style={{color: '#6B7280'}}>{currentUser.full_name}</p>
+            )}
           </div>
           <p className="text-xs font-semibold uppercase px-4 mb-2" style={{color: '#6B7280'}}>Menu</p>
           {navItems.map(item => (
@@ -291,15 +202,10 @@ export default function BranchPage() {
           <div className="mt-auto px-4 pt-6 border-t border-white/10">
             {isImpersonating ? (
               <button onClick={() => window.location.href = '/dashboard'}
-                className="text-sm font-medium w-full text-left"
-                style={{color: '#7C3AED'}}>
-                ← Exit Impersonation
-              </button>
+                className="text-sm font-medium w-full text-left" style={{color: '#7C3AED'}}>← Exit Impersonation</button>
             ) : (
               <button onClick={() => window.location.href = '/login'}
-                className="text-sm font-medium w-full text-left" style={{color: '#6B7280'}}>
-                Sign Out
-              </button>
+                className="text-sm font-medium w-full text-left" style={{color: '#6B7280'}}>Sign Out</button>
             )}
           </div>
         </div>
@@ -310,21 +216,112 @@ export default function BranchPage() {
           {/* ── DASHBOARD ── */}
           {activePage === 'dashboard' && (
             <div>
-              <h1 className="text-2xl font-bold mb-2" style={{color: '#0D2035'}}>Branch Dashboard</h1>
-              <p className="text-sm mb-6" style={{color: '#6B7280'}}>Overview of your organization</p>
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                <div className="bg-white rounded-xl shadow p-5">
-                  <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Total Staff</p>
-                  <p className="text-3xl font-bold" style={{color: '#0D2035'}}>{staff.length}</p>
+              <h1 className="text-2xl font-bold mb-1" style={{color: '#0D2035'}}>Branch Dashboard</h1>
+              <p className="text-sm mb-6" style={{color: '#6B7280'}}>Overview of {orgName}</p>
+
+              {/* Attention banner */}
+              {overdueAssignments.length > 0 && (
+                <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 mb-6 flex items-center gap-3">
+                  <span>🚨</span>
+                  <div>
+                    <p className="text-sm font-bold" style={{color: '#92400E'}}>Attention Needed</p>
+                    <p className="text-sm text-orange-700">{overdueAssignments.length} training{overdueAssignments.length > 1 ? 's are' : ' is'} overdue — staff need to complete them ASAP</p>
+                  </div>
                 </div>
-                <div className="bg-white rounded-xl shadow p-5">
-                  <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Trainings Assigned</p>
-                  <p className="text-3xl font-bold" style={{color: '#0D2035'}}>{assignments.length}</p>
+              )}
+
+              {/* Stat cards */}
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                {[
+                  { label: 'Total Staff', value: staff.length, sub: `${staff.filter(s => s.status === 'Active').length} active`, accent: '#0D9488' },
+                  { label: 'Trainings Assigned', value: assignments.length, sub: assignments[0]?.due_date ? `Due ${assignments[0].due_date}` : 'No due date', accent: '#7C3AED' },
+                  { label: 'Completions', value: completions.length, sub: staff.length > 0 ? `${Math.round((completions.length / Math.max(assignments.length * staff.length, 1)) * 100)}% rate` : '—', accent: '#16A34A' },
+                  { label: 'Overdue', value: overdueAssignments.length, sub: overdueAssignments.length === 0 ? 'All on track' : 'Need attention', accent: overdueAssignments.length > 0 ? '#DC2626' : '#6B7280' },
+                ].map(stat => (
+                  <div key={stat.label} className="bg-white rounded-xl shadow p-5"
+                    style={{borderLeft: `4px solid ${stat.accent}`}}>
+                    <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>{stat.label}</p>
+                    <p className="text-3xl font-bold mb-1" style={{color: stat.label === 'Overdue' && stat.value > 0 ? '#DC2626' : '#0D2035'}}>{stat.value}</p>
+                    <p className="text-xs" style={{color: stat.accent}}>{stat.sub}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Charts row */}
+              <div className="grid grid-cols-2 gap-6">
+
+                {/* Training Progress bar chart */}
+                <div className="bg-white rounded-xl shadow p-6">
+                  <h2 className="text-base font-bold mb-5" style={{color: '#0D2035'}}>Training Progress</h2>
+                  {assignments.length === 0 ? (
+                    <p className="text-sm" style={{color: '#6B7280'}}>No trainings assigned yet.</p>
+                  ) : (
+                    <div className="space-y-5">
+                      {assignments.map((a, index) => {
+                        const training = trainings.find(t => t.id === a.training_id);
+                        const rate = getTrainingCompletionRate(a.training_id);
+                        const color = chartColors[index % chartColors.length];
+                        const completed = completions.filter(c => c.training_id === a.training_id).length;
+                        return (
+                          <div key={a.id}>
+                            <div className="flex justify-between mb-1.5">
+                              <span className="text-sm font-semibold" style={{color: '#0D2035'}}>{training?.title || '—'}</span>
+                              <span className="text-sm font-bold" style={{color}}>{rate}%</span>
+                            </div>
+                            <div className="rounded-full h-3" style={{backgroundColor: '#F3F4F6'}}>
+                              <div className="h-3 rounded-full transition-all"
+                                style={{width: `${rate}%`, backgroundColor: color}}></div>
+                            </div>
+                            <p className="text-xs mt-1" style={{color: '#6B7280'}}>{completed} of {staff.length} staff completed</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div className="bg-white rounded-xl shadow p-5">
-                  <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Completions</p>
-                  <p className="text-3xl font-bold" style={{color: '#0D2035'}}>{completions.length}</p>
+
+                {/* Staff completion status */}
+                <div className="bg-white rounded-xl shadow p-6">
+                  <h2 className="text-base font-bold mb-5" style={{color: '#0D2035'}}>Staff Completion Status</h2>
+                  {staff.length === 0 ? (
+                    <p className="text-sm" style={{color: '#6B7280'}}>No staff yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {staff.map(member => {
+                        const completed = getStaffCompletionCount(member.id);
+                        const total = assignments.length;
+                        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+                        const initials = getInitials(member.full_name);
+                        const isGood = pct === 100;
+                        const isNone = pct === 0;
+                        const avatarBg = isGood ? '#DCFCE7' : isNone ? '#FEE2E2' : '#EEF2FF';
+                        const avatarColor = isGood ? '#16A34A' : isNone ? '#DC2626' : '#7C3AED';
+                        const badgeBg = isGood ? '#DCFCE7' : isNone ? '#FEE2E2' : '#EEF2FF';
+                        const badgeColor = isGood ? '#16A34A' : isNone ? '#DC2626' : '#7C3AED';
+                        return (
+                          <div key={member.id} className="flex items-center justify-between p-3 rounded-xl"
+                            style={{backgroundColor: '#F9FAFB'}}>
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                                style={{backgroundColor: avatarBg, color: avatarColor}}>
+                                {initials}
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold" style={{color: '#0D2035'}}>{member.full_name}</p>
+                                <p className="text-xs" style={{color: '#6B7280'}}>{member.role}</p>
+                              </div>
+                            </div>
+                            <span className="text-xs font-bold px-3 py-1 rounded-full"
+                              style={{backgroundColor: badgeBg, color: badgeColor}}>
+                              {completed}/{total} done
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
+
               </div>
             </div>
           )}
@@ -399,7 +396,7 @@ export default function BranchPage() {
                   </thead>
                   <tbody>
                     {staff.length === 0 ? (
-                      <tr><td colSpan="5" className="py-6 text-center" style={{color: '#6B7280'}}>No staff yet. Add one to get started.</td></tr>
+                      <tr><td colSpan="5" className="py-6 text-center" style={{color: '#6B7280'}}>No staff yet.</td></tr>
                     ) : staff.map(member => (
                       <tr key={member.id} className="border-b border-gray-50">
                         <td className="py-3 font-medium" style={{color: '#0D9488'}}>{member.full_name}</td>
@@ -408,10 +405,8 @@ export default function BranchPage() {
                         <td className="py-3 text-gray-500">{member.hire_date}</td>
                         <td className="py-3">
                           <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                            style={{
-                              backgroundColor: member.status === 'Active' ? '#DCFCE7' : '#FEE2E2',
-                              color: member.status === 'Active' ? '#16A34A' : '#DC2626'
-                            }}>
+                            style={{backgroundColor: member.status === 'Active' ? '#DCFCE7' : '#FEE2E2',
+                              color: member.status === 'Active' ? '#16A34A' : '#DC2626'}}>
                             {member.status}
                           </span>
                         </td>
@@ -440,48 +435,31 @@ export default function BranchPage() {
                   </thead>
                   <tbody>
                     {getAssignedTrainingsForRole(currentUser?.role || 'Branch Admin').length === 0 ? (
-                      <tr>
-                        <td colSpan="4" className="py-6 text-center" style={{color: '#6B7280'}}>
-                          No trainings assigned yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      getAssignedTrainingsForRole(currentUser?.role || 'Branch Admin').map(training => {
-                        const isCompleted = completions.some(c =>
-                          c.training_id === training.id && c.user_id === currentUser?.id
-                        );
-                        const assignment = assignments.find(a => a.training_id === training.id);
-                        return (
-                          <tr key={training.id} className="border-b border-gray-50">
-                            <td className="py-3 font-medium" style={{color: '#0D9488'}}>{training.title}</td>
-                            <td className="py-3 text-gray-500">{training.category}</td>
-                            <td className="py-3 text-gray-500">{training.recurrence}</td>
-                            <td className="py-3">
-                              {isCompleted ? (
-                                <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                                  style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}>
-                                  Completed
-                                </span>
-                              ) : (
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    onClick={() => window.location.href = `/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`}
-                                    className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
-                                    style={{backgroundColor: '#0D9488'}}>
-                                    Take Quiz
-                                  </button>
-                                  {assignment?.due_date && (
-                                    <span className="text-xs" style={{color: '#6B7280'}}>
-                                      Due {assignment.due_date}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
+                      <tr><td colSpan="4" className="py-6 text-center" style={{color: '#6B7280'}}>No trainings assigned yet.</td></tr>
+                    ) : getAssignedTrainingsForRole(currentUser?.role || 'Branch Admin').map(training => {
+                      const isCompleted = completions.some(c => c.training_id === training.id && c.user_id === currentUser?.id);
+                      const assignment = assignments.find(a => a.training_id === training.id);
+                      return (
+                        <tr key={training.id} className="border-b border-gray-50">
+                          <td className="py-3 font-medium" style={{color: '#0D9488'}}>{training.title}</td>
+                          <td className="py-3 text-gray-500">{training.category}</td>
+                          <td className="py-3 text-gray-500">{training.recurrence}</td>
+                          <td className="py-3">
+                            {isCompleted ? (
+                              <span className="px-2 py-1 rounded-full text-xs font-semibold"
+                                style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}>Completed</span>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <button onClick={() => window.location.href = `/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`}
+                                  className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
+                                  style={{backgroundColor: '#0D9488'}}>Take Quiz</button>
+                                {assignment?.due_date && <span className="text-xs" style={{color: '#6B7280'}}>Due {assignment.due_date}</span>}
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -514,16 +492,12 @@ export default function BranchPage() {
                         <td className="py-3 text-gray-500">{completion.completed_date}</td>
                         <td className="py-3">
                           <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                            style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}>
-                            Completed
-                          </span>
+                            style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}>Completed</span>
                         </td>
                         <td className="py-3">
                           <button onClick={() => printCertificate(completion)}
                             className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
-                            style={{backgroundColor: '#0D2035'}}>
-                            🖨 Print
-                          </button>
+                            style={{backgroundColor: '#0D2035'}}>🖨 Print</button>
                         </td>
                       </tr>
                     ))}
