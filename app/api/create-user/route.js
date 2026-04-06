@@ -39,6 +39,9 @@ export async function POST(request) {
     await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
     return Response.json({ error: userError.message }, { status: 400 });
   }
-
+// Send welcome email with password setup link
+await supabaseAdmin.auth.resetPasswordForEmail(email, {
+  redirectTo: 'https://bh-lms.vercel.app/reset-password'
+});
   return Response.json({ success: true, user: userData });
 }
