@@ -63,8 +63,7 @@ export default function LoginPage() {
 
         {/* Logo area */}
         <div className="px-8 pt-10 pb-6 text-center border-b border-gray-100">
-        <img src="/ImpactWorkforce.png" alt="Impact Workforce" className="h-20 mb-2" />
-        <p className="text-sm mt-1" style={{color: '#6B7280'}}>Training Management Platform</p>
+        <img src="/ImpactWorkforce.png" alt="Impact Workforce" className="h-20" />
         </div>
 
         {/* Form area */}
