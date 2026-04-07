@@ -3,9 +3,18 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
+const BILLING_PLANS = {
+  'Starter — up to 15': 15,
+  'Growth — up to 25': 25,
+  'Professional — up to 40': 40,
+  'Enterprise — up to 75': 75,
+  'Elite — 100+': 999,
+};
+
 export default function BranchPage() {
   const [activePage, setActivePage] = useState('dashboard');
   const [orgName, setOrgName] = useState('Branch Admin');
+  const [orgData, setOrgData] = useState(null);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [orgId, setOrgId] = useState(null);
@@ -30,6 +39,7 @@ export default function BranchPage() {
       setIsImpersonating(true);
       setOrgId(impersonateOrgId);
       setOrgName(decodeURIComponent(impersonateOrgName || 'Organization'));
+      fetchOrgData(impersonateOrgId);
       fetchStaff(impersonateOrgId);
       fetchAssignments(impersonateOrgId);
       fetchTrainings();
@@ -42,17 +52,24 @@ export default function BranchPage() {
   const fetchCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const { data } = await supabase.from('users').select('*, organizations(name)').eq('auth_id', user.id).single();
+      const { data } = await supabase.from('users').select('*, organizations(*)').eq('auth_id', user.id).single();
       if (data) {
         setCurrentUser(data);
         setOrgId(data.organization_id);
         setOrgName(data.organizations?.name || 'Branch Admin');
+        setOrgData(data.organizations);
         fetchStaff(data.organization_id);
         fetchAssignments(data.organization_id);
         fetchTrainings();
         fetchCompletions(data.organization_id);
       }
     }
+  };
+
+  const fetchOrgData = async (oId) => {
+    if (!oId) return;
+    const { data } = await supabase.from('organizations').select('*').eq('id', oId).single();
+    if (data) setOrgData(data);
   };
 
   const fetchStaff = async (oId) => {
@@ -82,6 +99,12 @@ export default function BranchPage() {
     }
   };
 
+  // Capacity helpers
+  const getPlanLimit = (plan) => BILLING_PLANS[plan] || 999;
+  const planLimit = getPlanLimit(orgData?.billing_plan);
+  const isAtLimit = staff.length >= planLimit;
+  const isNearLimit = !isAtLimit && planLimit < 999 && (staff.length / planLimit) >= 0.9;
+
   const getAssignedTrainingsForRole = (role) => {
     const assignedTrainingIds = assignments.map(a => a.training_id);
     const assignedTrainings = trainings.filter(t => assignedTrainingIds.includes(t.id));
@@ -89,17 +112,8 @@ export default function BranchPage() {
     return directCareRoles.includes(role) ? assignedTrainings : assignedTrainings.filter(t => t.category === 'All Staff');
   };
 
-  const getTrainingCompletionRate = (trainingId) => {
-    if (staff.length === 0) return 0;
-    const completed = completions.filter(c => c.training_id === trainingId).length;
-    return Math.round((completed / staff.length) * 100);
-  };
-
   const getStaffCompletionCount = (staffId) => completions.filter(c => c.user_id === staffId).length;
-
   const getInitials = (name) => name?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || '??';
-
-  const chartColors = ['#0D9488', '#7C3AED', '#EA580C', '#16A34A', '#0284C7', '#DB2777'];
 
   const overdueAssignments = assignments.filter(a =>
     a.due_date && new Date(a.due_date) < new Date() &&
@@ -108,6 +122,7 @@ export default function BranchPage() {
 
   const saveStaff = async (member) => {
     if (!orgId) { alert('Error: Could not determine your organization.'); return; }
+    if (isAtLimit) return;
     const response = await fetch('/api/create-user', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -185,6 +200,12 @@ export default function BranchPage() {
             {currentUser?.full_name && !isImpersonating && (
               <p className="text-xs mt-1" style={{color: '#6B7280'}}>{currentUser.full_name}</p>
             )}
+            {orgData?.billing_plan && (
+              <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full font-semibold"
+                style={{backgroundColor: 'rgba(13,148,136,0.2)', color: '#0D9488'}}>
+                {orgData.billing_plan}
+              </span>
+            )}
           </div>
           <p className="text-xs font-semibold uppercase px-4 mb-2" style={{color: '#6B7280'}}>Menu</p>
           {navItems.map(item => (
@@ -219,7 +240,27 @@ export default function BranchPage() {
               <h1 className="text-2xl font-bold mb-1" style={{color: '#0D2035'}}>Branch Dashboard</h1>
               <p className="text-sm mb-6" style={{color: '#6B7280'}}>Overview of {orgName}</p>
 
-              {/* Attention banner */}
+              {/* Capacity warning */}
+              {isAtLimit && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4 mb-6 flex items-center gap-3">
+                  <span>🔒</span>
+                  <div>
+                    <p className="text-sm font-bold text-red-700">Staff Limit Reached</p>
+                    <p className="text-sm text-red-600">You've reached your {orgData?.billing_plan} limit ({staff.length}/{planLimit} staff). Please contact Impact Workforce to upgrade your plan.</p>
+                  </div>
+                </div>
+              )}
+              {isNearLimit && !isAtLimit && (
+                <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 mb-6 flex items-center gap-3">
+                  <span>⚠️</span>
+                  <div>
+                    <p className="text-sm font-bold" style={{color: '#92400E'}}>Approaching Staff Limit</p>
+                    <p className="text-sm text-orange-700">You're at {staff.length}/{planLimit} staff on your {orgData?.billing_plan} plan. Contact Impact Workforce to upgrade before you hit the limit.</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Overdue banner */}
               {overdueAssignments.length > 0 && (
                 <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 mb-6 flex items-center gap-3">
                   <span>🚨</span>
@@ -233,7 +274,7 @@ export default function BranchPage() {
               {/* Stat cards */}
               <div className="grid grid-cols-4 gap-4 mb-6">
                 {[
-                  { label: 'Total Staff', value: staff.length, sub: `${staff.filter(s => s.status === 'Active').length} active`, accent: '#0D9488' },
+                  { label: 'Total Staff', value: `${staff.length}${planLimit < 999 ? `/${planLimit}` : ''}`, sub: `${staff.filter(s => s.status === 'Active').length} active`, accent: '#0D9488' },
                   { label: 'Trainings Assigned', value: assignments.length, sub: assignments[0]?.due_date ? `Due ${assignments[0].due_date}` : 'No due date', accent: '#7C3AED' },
                   { label: 'Completions', value: completions.length, sub: staff.length > 0 ? `${Math.round((completions.length / Math.max(assignments.length * staff.length, 1)) * 100)}% rate` : '—', accent: '#16A34A' },
                   { label: 'Overdue', value: overdueAssignments.length, sub: overdueAssignments.length === 0 ? 'All on track' : 'Need attention', accent: overdueAssignments.length > 0 ? '#DC2626' : '#6B7280' },
@@ -247,53 +288,46 @@ export default function BranchPage() {
                 ))}
               </div>
 
-              {/* Charts row */}
-              <div className="grid grid-cols-1 gap-6">
-
-                
-
-                {/* Staff completion status */}
-                <div className="bg-white rounded-xl shadow p-6">
-                  <h2 className="text-base font-bold mb-5" style={{color: '#0D2035'}}>Staff Completion Status</h2>
-                  {staff.length === 0 ? (
-                    <p className="text-sm" style={{color: '#6B7280'}}>No staff yet.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {staff.map(member => {
-                        const completed = getStaffCompletionCount(member.id);
-                        const total = assignments.length;
-                        const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-                        const initials = getInitials(member.full_name);
-                        const isGood = pct === 100;
-                        const isNone = pct === 0;
-                        const avatarBg = isGood ? '#DCFCE7' : isNone ? '#FEE2E2' : '#EEF2FF';
-                        const avatarColor = isGood ? '#16A34A' : isNone ? '#DC2626' : '#7C3AED';
-                        const badgeBg = isGood ? '#DCFCE7' : isNone ? '#FEE2E2' : '#EEF2FF';
-                        const badgeColor = isGood ? '#16A34A' : isNone ? '#DC2626' : '#7C3AED';
-                        return (
-                          <div key={member.id} className="flex items-center justify-between p-3 rounded-xl"
-                            style={{backgroundColor: '#F9FAFB'}}>
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                                style={{backgroundColor: avatarBg, color: avatarColor}}>
-                                {initials}
-                              </div>
-                              <div>
-                                <p className="text-sm font-semibold" style={{color: '#0D2035'}}>{member.full_name}</p>
-                                <p className="text-xs" style={{color: '#6B7280'}}>{member.role}</p>
-                              </div>
+              {/* Staff completion status */}
+              <div className="bg-white rounded-xl shadow p-6">
+                <h2 className="text-base font-bold mb-5" style={{color: '#0D2035'}}>Staff Completion Status</h2>
+                {staff.length === 0 ? (
+                  <p className="text-sm" style={{color: '#6B7280'}}>No staff yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {staff.map(member => {
+                      const completed = getStaffCompletionCount(member.id);
+                      const total = assignments.length;
+                      const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+                      const initials = getInitials(member.full_name);
+                      const isGood = pct === 100;
+                      const isNone = pct === 0;
+                      const avatarBg = isGood ? '#DCFCE7' : isNone ? '#FEE2E2' : '#EEF2FF';
+                      const avatarColor = isGood ? '#16A34A' : isNone ? '#DC2626' : '#7C3AED';
+                      const badgeBg = isGood ? '#DCFCE7' : isNone ? '#FEE2E2' : '#EEF2FF';
+                      const badgeColor = isGood ? '#16A34A' : isNone ? '#DC2626' : '#7C3AED';
+                      return (
+                        <div key={member.id} className="flex items-center justify-between p-3 rounded-xl"
+                          style={{backgroundColor: '#F9FAFB'}}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                              style={{backgroundColor: avatarBg, color: avatarColor}}>
+                              {initials}
                             </div>
-                            <span className="text-xs font-bold px-3 py-1 rounded-full"
-                              style={{backgroundColor: badgeBg, color: badgeColor}}>
-                              {completed}/{total} done
-                            </span>
+                            <div>
+                              <p className="text-sm font-semibold" style={{color: '#0D2035'}}>{member.full_name}</p>
+                              <p className="text-xs" style={{color: '#6B7280'}}>{member.role}</p>
+                            </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
+                          <span className="text-xs font-bold px-3 py-1 rounded-full"
+                            style={{backgroundColor: badgeBg, color: badgeColor}}>
+                            {completed}/{total} done
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -303,12 +337,48 @@ export default function BranchPage() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold" style={{color: '#0D2035'}}>My Staff</h1>
-                <button onClick={() => setShowAddStaff(true)}
-                  className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                  style={{backgroundColor: '#0D9488'}}>+ Add Staff</button>
+                {!isAtLimit ? (
+                  <button onClick={() => setShowAddStaff(true)}
+                    className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
+                    style={{backgroundColor: '#0D9488'}}>+ Add Staff</button>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold px-3 py-2 rounded-lg"
+                      style={{backgroundColor: '#FEE2E2', color: '#DC2626'}}>
+                      🔒 Plan limit reached
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {showAddStaff && (
+              {/* Locked state banner */}
+              {isAtLimit && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-6 mb-6 text-center">
+                  <div className="text-4xl mb-3">🔒</div>
+                  <h3 className="text-lg font-bold text-red-700 mb-2">Staff Limit Reached</h3>
+                  <p className="text-sm text-red-600 mb-4">
+                    Your organization is on the <strong>{orgData?.billing_plan}</strong> plan which allows up to <strong>{planLimit} staff members</strong>. You currently have <strong>{staff.length}</strong>.
+                  </p>
+                  <p className="text-sm text-red-600">
+                    To add more staff, please contact <strong>Impact Workforce</strong> to upgrade your plan.
+                  </p>
+                  <a href="mailto:impactlearningbhs@gmail.com"
+                    className="inline-block mt-4 px-6 py-2 rounded-lg text-white text-sm font-semibold"
+                    style={{backgroundColor: '#0D9488'}}>
+                    Contact Us to Upgrade
+                  </a>
+                </div>
+              )}
+
+              {/* Near limit warning */}
+              {isNearLimit && !isAtLimit && (
+                <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 mb-6">
+                  <p className="text-sm font-bold" style={{color: '#92400E'}}>⚠️ Approaching Staff Limit</p>
+                  <p className="text-sm text-orange-700 mt-1">You're at {staff.length}/{planLimit} staff. Contact Impact Workforce before you hit your limit.</p>
+                </div>
+              )}
+
+              {showAddStaff && !isAtLimit && (
                 <div className="bg-white rounded-xl shadow p-6 mb-6">
                   <h2 className="text-lg font-bold mb-4" style={{color: '#0D2035'}}>New Staff Member</h2>
                   <div className="grid grid-cols-2 gap-4">
