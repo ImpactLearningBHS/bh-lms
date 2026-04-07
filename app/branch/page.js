@@ -200,12 +200,6 @@ export default function BranchPage() {
             {currentUser?.full_name && !isImpersonating && (
               <p className="text-xs mt-1" style={{color: '#6B7280'}}>{currentUser.full_name}</p>
             )}
-            {orgData?.billing_plan && (
-              <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full font-semibold"
-                style={{backgroundColor: 'rgba(13,148,136,0.2)', color: '#0D9488'}}>
-                {orgData.billing_plan}
-              </span>
-            )}
           </div>
           <p className="text-xs font-semibold uppercase px-4 mb-2" style={{color: '#6B7280'}}>Menu</p>
           {navItems.map(item => (
@@ -274,7 +268,7 @@ export default function BranchPage() {
               {/* Stat cards */}
               <div className="grid grid-cols-4 gap-4 mb-6">
                 {[
-                  { label: 'Total Staff', value: `${staff.length}${planLimit < 999 ? `/${planLimit}` : ''}`, sub: `${staff.filter(s => s.status === 'Active').length} active`, accent: '#0D9488' },
+                  { label: 'Total Staff', value: staff.length, sub: `${staff.filter(s => s.status === 'Active').length} active`, accent: '#0D9488' },
                   { label: 'Trainings Assigned', value: assignments.length, sub: assignments[0]?.due_date ? `Due ${assignments[0].due_date}` : 'No due date', accent: '#7C3AED' },
                   { label: 'Completions', value: completions.length, sub: staff.length > 0 ? `${Math.round((completions.length / Math.max(assignments.length * staff.length, 1)) * 100)}% rate` : '—', accent: '#16A34A' },
                   { label: 'Overdue', value: overdueAssignments.length, sub: overdueAssignments.length === 0 ? 'All on track' : 'Need attention', accent: overdueAssignments.length > 0 ? '#DC2626' : '#6B7280' },
