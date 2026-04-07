@@ -11,7 +11,7 @@ async function sendWelcomeEmail(email, full_name, role, orgName, setupUrl) {
   const isBranchAdmin = role === 'Branch Admin';
 
   const subject = isBranchAdmin
-    ? 'Welcome to Impact Workforce — Let\'s Get Started!'
+    ? "Welcome to Impact Workforce — Let's Get Started!"
     : `You've been added to ${orgName}'s training portal`;
 
   const html = isBranchAdmin ? `
@@ -79,7 +79,7 @@ async function sendWelcomeEmail(email, full_name, role, orgName, setupUrl) {
     </html>
   `;
 
-  await fetch('https://api.resend.com/emails', {
+  const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -92,15 +92,17 @@ async function sendWelcomeEmail(email, full_name, role, orgName, setupUrl) {
       html,
     }),
   });
+  const result = await response.json();
+  console.log('Resend result:', JSON.stringify(result));
+  return result;
 }
 
 export async function POST(request) {
   const { email, full_name, role, hire_date, status, organization_id } = await request.json();
 
-  // 1. Create auth user via Supabase (no email sent)
-  const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.createUser({
-    email,
-    email_confirm: true,
+  // 1. Use inviteUserByEmail — creates auth account and generates invite link
+  const { data: inviteData, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: 'https://impactworkforcesystems.com/reset-password'
   });
 
   if (inviteError) {
@@ -127,20 +129,7 @@ export async function POST(request) {
     return Response.json({ error: userError.message }, { status: 400 });
   }
 
-  // 3. Generate password setup link
-  const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-    type: 'invite',
-    email,
-    options: {
-      redirectTo: 'https://impactworkforcesystems.com/reset-password'
-    }
-  });
-
-  if (linkError) {
-    console.error('Link generation error:', linkError.message);
-  }
-
-  // 4. Get org name for the email
+  // 3. Get org name
   let orgName = 'your organization';
   if (organization_id) {
     const { data: org } = await supabaseAdmin
@@ -151,8 +140,10 @@ export async function POST(request) {
     if (org) orgName = org.name;
   }
 
+  // 4. Get the invite link from inviteData
+  const setupUrl = inviteData.user?.action_link || 'https://impactworkforcesystems.com/login';
+
   // 5. Send role-based welcome email via Resend
-  const setupUrl = linkData?.properties?.action_link || 'https://impactworkforcesystems.com/login';
   await sendWelcomeEmail(email, full_name, role, orgName, setupUrl);
 
   return Response.json({ success: true, user: userData });
