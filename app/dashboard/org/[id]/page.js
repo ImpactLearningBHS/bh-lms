@@ -180,12 +180,6 @@ export default function ManageOrgPage() {
           <div className="px-4 mb-6 pb-6 border-b border-white/10">
             <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Managing Org</p>
             <p className="text-sm font-bold text-white">{org?.name}</p>
-            {org?.billing_plan && (
-              <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full font-semibold"
-                style={{backgroundColor: 'rgba(13,148,136,0.2)', color: '#0D9488'}}>
-                {org.billing_plan}
-              </span>
-            )}
           </div>
           <p className="text-xs font-semibold uppercase px-4 mb-2" style={{color: '#6B7280'}}>Sections</p>
           {tabs.map(tab => (
