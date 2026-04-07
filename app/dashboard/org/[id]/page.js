@@ -4,6 +4,24 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '../../../../lib/supabase';
 
+const BILLING_PLANS = [
+  'Starter — up to 15',
+  'Growth — up to 25',
+  'Professional — up to 40',
+  'Enterprise — up to 75',
+  'Elite — 100+',
+];
+
+const LEVELS = [
+  '1.0 - Outpatient','2.1 - Intensive Outpatient','2.5 - Partial Hospitalization',
+  '3.1 - Clinically Managed Low-Intensity Residential',
+  '3.3 - Clinically Managed Population-Specific High-Intensity Residential',
+  '3.5 - Clinically Managed High-Intensity Residential',
+  '3.7 - Medically Monitored Intensive Inpatient',
+  '4.0 - Medically Managed Intensive Inpatient Services',
+  'Psychiatric Rehabilitation Programs (PRP)','Outpatient Mental Health Clinic (OMHC)','Other'
+];
+
 export default function ManageOrgPage() {
   const { id } = useParams();
   const [org, setOrg] = useState(null);
@@ -19,6 +37,7 @@ export default function ManageOrgPage() {
   const [assignTrainingId, setAssignTrainingId] = useState('');
   const [assignSuccess, setAssignSuccess] = useState('');
   const [removingStaffId, setRemovingStaffId] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => { fetchAll(); }, [id]);
 
@@ -30,7 +49,7 @@ export default function ManageOrgPage() {
 
   const fetchOrg = async () => {
     const { data } = await supabase.from('organizations').select('*').eq('id', id).single();
-    if (data) { setOrg(data); setEditOrg(data); }
+    if (data) { setOrg(data); setEditOrg({...data, types: data.type ? data.type.split(', ') : []}); }
   };
 
   const fetchStaff = async () => {
@@ -59,9 +78,21 @@ export default function ManageOrgPage() {
 
   const saveOrgEdits = async () => {
     const { data } = await supabase.from('organizations').update({
-      name: editOrg.name, email: editOrg.email, status: editOrg.status,
+      name: editOrg.name,
+      phone: editOrg.phone,
+      address: editOrg.address,
+      city: editOrg.city,
+      state: editOrg.state,
+      zip: editOrg.zip,
+      billing_plan: editOrg.billing_plan,
+      status: editOrg.status,
+      type: editOrg.types?.join(', '),
     }).eq('id', id).select();
-    if (data) { setOrg(data[0]); setEditing(false); }
+    if (data) {
+      setOrg(data[0]);
+      setSaveSuccess(true);
+      setTimeout(() => { setSaveSuccess(false); setEditing(false); }, 1500);
+    }
   };
 
   const assignTraining = async () => {
@@ -99,10 +130,9 @@ export default function ManageOrgPage() {
     return Math.round((completed / staff.length) * 100);
   };
 
-  const overdueCount = assignments.filter(a => {
-    return a.due_date && new Date(a.due_date) < new Date() &&
-      !completions.some(c => c.training_id === a.training_id);
-  }).length;
+  const overdueCount = assignments.filter(a =>
+    a.due_date && new Date(a.due_date) < new Date() && !completions.some(c => c.training_id === a.training_id)
+  ).length;
 
   const orgInitials = org?.name?.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase() || 'ORG';
 
@@ -150,6 +180,12 @@ export default function ManageOrgPage() {
           <div className="px-4 mb-6 pb-6 border-b border-white/10">
             <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Managing Org</p>
             <p className="text-sm font-bold text-white">{org?.name}</p>
+            {org?.billing_plan && (
+              <span className="inline-block mt-2 text-xs px-2 py-0.5 rounded-full font-semibold"
+                style={{backgroundColor: 'rgba(13,148,136,0.2)', color: '#0D9488'}}>
+                {org.billing_plan}
+              </span>
+            )}
           </div>
           <p className="text-xs font-semibold uppercase px-4 mb-2" style={{color: '#6B7280'}}>Sections</p>
           {tabs.map(tab => (
@@ -190,7 +226,11 @@ export default function ManageOrgPage() {
                     {org?.status || 'Active'}
                   </span>
                 </div>
-                <p className="text-sm mt-1" style={{color: '#6B7280'}}>{org?.email} · {org?.type}</p>
+                <p className="text-sm mt-1" style={{color: '#6B7280'}}>
+                  {org?.city && org?.state ? `${org.city}, ${org.state}` : ''}
+                  {org?.phone ? ` · ${org.phone}` : ''}
+                  {org?.billing_plan ? ` · ${org.billing_plan}` : ''}
+                </p>
               </div>
             </div>
             <div className="flex gap-3">
@@ -214,38 +254,116 @@ export default function ManageOrgPage() {
 
           {/* Edit Modal */}
           {editing && (
-            <div className="fixed inset-0 z-50" style={{backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-              <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-                <h2 className="text-lg font-bold mb-6" style={{color: '#0D2035'}}>Edit Organization</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Organization Name</label>
-                    <input type="text" value={editOrg.name || ''}
-                      onChange={(e) => setEditOrg({...editOrg, name: e.target.value})}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+            <div className="fixed inset-0 z-50 overflow-y-auto" style={{backgroundColor: 'rgba(0,0,0,0.4)'}}>
+              <div className="flex items-start justify-center min-h-screen pt-10 pb-10">
+                <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-2xl mx-4">
+                  <h2 className="text-lg font-bold mb-6" style={{color: '#0D2035'}}>Edit Organization</h2>
+
+                  <div className="grid grid-cols-2 gap-4">
+
+                    {/* Basic Info */}
+                    <div className="col-span-2">
+                      <p className="text-xs font-bold uppercase mb-3" style={{color: '#0D9488'}}>Basic Info</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Organization Name</label>
+                      <input type="text" value={editOrg.name || ''}
+                        onChange={(e) => setEditOrg({...editOrg, name: e.target.value})}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Phone Number</label>
+                      <input type="tel" value={editOrg.phone || ''}
+                        onChange={(e) => setEditOrg({...editOrg, phone: e.target.value})}
+                        placeholder="(555) 555-5555"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Status</label>
+                      <select value={editOrg.status || 'Active'}
+                        onChange={(e) => setEditOrg({...editOrg, status: e.target.value})}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+                        <option>Active</option>
+                        <option>Inactive</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Billing Plan</label>
+                      <select value={editOrg.billing_plan || ''}
+                        onChange={(e) => setEditOrg({...editOrg, billing_plan: e.target.value})}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+                        <option value="">— Select plan —</option>
+                        {BILLING_PLANS.map(plan => <option key={plan}>{plan}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Address */}
+                    <div className="col-span-2 mt-2">
+                      <p className="text-xs font-bold uppercase mb-3" style={{color: '#0D9488'}}>Address</p>
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Street Address</label>
+                      <input type="text" value={editOrg.address || ''}
+                        onChange={(e) => setEditOrg({...editOrg, address: e.target.value})}
+                        placeholder="123 Main Street"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>City</label>
+                      <input type="text" value={editOrg.city || ''}
+                        onChange={(e) => setEditOrg({...editOrg, city: e.target.value})}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>State</label>
+                        <input type="text" value={editOrg.state || ''}
+                          onChange={(e) => setEditOrg({...editOrg, state: e.target.value})}
+                          placeholder="MD"
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Zip</label>
+                        <input type="text" value={editOrg.zip || ''}
+                          onChange={(e) => setEditOrg({...editOrg, zip: e.target.value})}
+                          placeholder="21201"
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                      </div>
+                    </div>
+
+                    {/* Level of Care */}
+                    <div className="col-span-2 mt-2">
+                      <p className="text-xs font-bold uppercase mb-3" style={{color: '#0D9488'}}>Level of Care / Programs</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {LEVELS.map(level => (
+                          <label key={level} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                            <input type="checkbox"
+                              checked={editOrg.types?.includes(level) || false}
+                              onChange={(e) => {
+                                const current = editOrg.types || [];
+                                setEditOrg({...editOrg, types: e.target.checked ? [...current, level] : current.filter(t => t !== level)});
+                              }} />
+                            {level}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Contact Email</label>
-                    <input type="email" value={editOrg.email || ''}
-                      onChange={(e) => setEditOrg({...editOrg, email: e.target.value})}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+
+                  {saveSuccess && (
+                    <div className="mt-4 rounded-lg p-3" style={{backgroundColor: '#F0FDF4', border: '1px solid #86EFAC'}}>
+                      <p className="text-sm font-medium" style={{color: '#16A34A'}}>✅ Changes saved!</p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 mt-6">
+                    <button onClick={saveOrgEdits}
+                      className="flex-1 py-2 rounded-lg text-white font-semibold text-sm"
+                      style={{backgroundColor: '#0D9488'}}>Save Changes</button>
+                    <button onClick={() => setEditing(false)}
+                      className="flex-1 py-2 rounded-lg text-gray-500 bg-gray-100 font-semibold text-sm">Cancel</button>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Status</label>
-                    <select value={editOrg.status || 'Active'}
-                      onChange={(e) => setEditOrg({...editOrg, status: e.target.value})}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
-                      <option>Active</option>
-                      <option>Inactive</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="flex gap-3 mt-6">
-                  <button onClick={saveOrgEdits}
-                    className="flex-1 py-2 rounded-lg text-white font-semibold text-sm"
-                    style={{backgroundColor: '#0D9488'}}>Save Changes</button>
-                  <button onClick={() => setEditing(false)}
-                    className="flex-1 py-2 rounded-lg text-gray-500 bg-gray-100 font-semibold text-sm">Cancel</button>
                 </div>
               </div>
             </div>
@@ -285,7 +403,6 @@ export default function ManageOrgPage() {
           {/* ── OVERVIEW ── */}
           {activeTab === 'overview' && (
             <div>
-              {/* Stat cards */}
               <div className="grid grid-cols-4 gap-4 mb-6">
                 {[
                   { label: 'Total Staff', value: staff.length, sub: `${staff.filter(s => s.status === 'Active').length} active`, accent: '#0D9488' },
@@ -302,10 +419,7 @@ export default function ManageOrgPage() {
                 ))}
               </div>
 
-              {/* Bottom two columns */}
               <div className="grid grid-cols-2 gap-6">
-
-                {/* Recent Activity */}
                 <div className="bg-white rounded-xl shadow p-6">
                   <h2 className="text-base font-bold mb-4" style={{color: '#0D2035'}}>Recent Activity</h2>
                   {completions.length === 0 ? (
@@ -316,9 +430,7 @@ export default function ManageOrgPage() {
                         <li key={c.id} className="flex items-start gap-3">
                           <span className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{backgroundColor: '#0D9488'}}></span>
                           <div>
-                            <p className="text-sm font-medium" style={{color: '#0D2035'}}>
-                              {c.staff_name} completed "{c.training_title}"
-                            </p>
+                            <p className="text-sm font-medium" style={{color: '#0D2035'}}>{c.staff_name} completed "{c.training_title}"</p>
                             <p className="text-xs" style={{color: '#6B7280'}}>{c.completed_date}</p>
                           </div>
                         </li>
@@ -327,7 +439,6 @@ export default function ManageOrgPage() {
                   )}
                 </div>
 
-                {/* Training Compliance */}
                 <div className="bg-white rounded-xl shadow p-6">
                   <h2 className="text-base font-bold mb-4" style={{color: '#0D2035'}}>Training Compliance</h2>
                   {assignments.length === 0 ? (
@@ -346,8 +457,7 @@ export default function ManageOrgPage() {
                               </span>
                             </div>
                             <div className="rounded-full h-2" style={{backgroundColor: '#F3F4F6'}}>
-                              <div className="h-2 rounded-full transition-all"
-                                style={{width: `${rate}%`, backgroundColor: rate === 100 ? '#16A34A' : '#0D9488'}}></div>
+                              <div className="h-2 rounded-full" style={{width: `${rate}%`, backgroundColor: rate === 100 ? '#16A34A' : '#0D9488'}}></div>
                             </div>
                             <p className="text-xs mt-1" style={{color: '#6B7280'}}>{rate}% complete</p>
                           </div>
@@ -356,7 +466,6 @@ export default function ManageOrgPage() {
                     </div>
                   )}
                 </div>
-
               </div>
             </div>
           )}
