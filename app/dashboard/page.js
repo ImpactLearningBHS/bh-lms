@@ -53,7 +53,8 @@ export default function DashboardPage() {
   };
 
   const fetchOrganizations = async () => {
-    const { data } = await supabase.from('organizations').select('*');
+    const { data, error } = await supabase.from('organizations').select('*');
+    if (error) console.error('Org fetch error:', error.message);
     if (data) setOrganizations(data);
   };
 
