@@ -45,30 +45,51 @@ export default function QuizPage() {
     if (finalScore === 100) {
       const { data: { user } } = await supabase.auth.getUser();
       const today = new Date().toISOString().split('T')[0];
-    
+
       // Look up the database user to get the correct ID
       const { data: dbUser } = await supabase
         .from('users')
-        .select('id, full_name')
+        .select('id, full_name, organization_id')
         .eq('auth_id', user.id)
         .single();
-    
-      const { data: insertData, error: insertError } = await supabase.from('training_completions').insert([{
-        training_id: training.id,
-        user_id: dbUser?.id || user.id,
-        training_title: training.title,
-        completed_date: today,
-        completed_at: new Date().toISOString(),
-        staff_name: dbUser?.full_name || user.email
-      }]).select();
+
+      // Save completion record
+      const { data: insertData, error: insertError } = await supabase
+        .from('training_completions')
+        .insert([{
+          training_id: training.id,
+          user_id: dbUser?.id || user.id,
+          training_title: training.title,
+          completed_date: today,
+          completed_at: new Date().toISOString(),
+          staff_name: dbUser?.full_name || user.email
+        }]).select();
       console.log('Completion insert:', insertData, insertError);
 
+      // Auto-renew: set next due date 1 year from today
+      if (dbUser?.organization_id) {
+        const nextDueDate = new Date();
+        nextDueDate.setFullYear(nextDueDate.getFullYear() + 1);
+        const nextDueDateStr = nextDueDate.toISOString().split('T')[0];
+
+        const { error: renewError } = await supabase
+          .from('training_assignments')
+          .update({ due_date: nextDueDateStr })
+          .eq('training_id', training.id)
+          .eq('organization_id', dbUser.organization_id);
+
+        if (renewError) console.log('Auto-renew error:', renewError.message);
+        else console.log('Auto-renewed due date to:', nextDueDateStr);
+      }
+
+      // Save quiz attempt
       await supabase.from('quiz_attempts').insert([{
         user_id: user.id,
         training_id: training.id,
         score: finalScore,
         passed: true
       }]);
+
     } else {
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from('quiz_attempts').insert([{
@@ -165,6 +186,7 @@ export default function QuizPage() {
                   <div className="text-6xl mb-4">🎉</div>
                   <h2 className="text-2xl font-bold mb-2" style={{color: '#0D9488'}}>Congratulations!</h2>
                   <p className="text-gray-500 mb-2">You scored {score}% and completed this training!</p>
+                  <p className="text-sm" style={{color: '#6B7280'}}>Your next renewal is due in 1 year.</p>
                   <button
                     onClick={() => window.location.href = '/branch'}
                     className="mt-6 px-6 py-3 rounded-lg text-white font-semibold"
