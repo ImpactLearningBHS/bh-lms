@@ -304,7 +304,7 @@ export default function DashboardPage() {
           </div>
           <p className="text-xs font-semibold uppercase px-4 mb-2" style={{color: '#6B7280'}}>Platform</p>
           {navItems.map(item => (
-            <button key={item.id} onClick={() => setActivePage(item.id)}
+            <button key={item.id} onClick={() => item.id === 'settings' ? window.location.href = '/settings' : setActivePage(item.id)}
               className="text-left px-4 py-3 text-sm transition-colors rounded-lg"
               style={{
                 borderLeft: activePage === item.id ? '4px solid #0D9488' : '4px solid transparent',
