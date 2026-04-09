@@ -28,7 +28,14 @@ export default function DashboardPage() {
   const [assignments, setAssignments] = useState([]);
   const [showAddTraining, setShowAddTraining] = useState(false);
   const [showAssignTraining, setShowAssignTraining] = useState(false);
-  const [newTraining, setNewTraining] = useState({title: '', category: 'All Staff', recurrence: 'Annual', description: '', status: 'Active'});
+  const [newTraining, setNewTraining] = useState({
+    title: '', category: 'All Staff', recurrence: 'Annual',
+    description: '', status: 'Active',
+    content_type: 'video', content_text: '',
+  });
+  const [videoFile, setVideoFile] = useState(null);
+  const [pdfFile, setPdfFile] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState('');
   const [newAssignment, setNewAssignment] = useState({training_id: '', organization_id: 'all'});
   const [assignSuccess, setAssignSuccess] = useState('');
   const [snapshot, setSnapshot] = useState({
@@ -166,14 +173,63 @@ export default function DashboardPage() {
   const handleManageOrg = (org) => window.location.href = `/dashboard/org/${org.id}`;
 
   const saveTraining = async (training) => {
+    setUploadProgress('Saving training...');
+    let video_url = null;
+    let content_pdf_url = null;
+
+    // Upload video if provided
+    if (videoFile && training.content_type === 'video') {
+      setUploadProgress('Uploading video...');
+      const fileExt = videoFile.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const { data: videoData, error: videoError } = await supabase.storage
+        .from('training-videos')
+        .upload(fileName, videoFile);
+      if (videoError) {
+        alert('Video upload failed: ' + videoError.message);
+        setUploadProgress('');
+        return;
+      }
+      const { data: { publicUrl } } = supabase.storage.from('training-videos').getPublicUrl(fileName);
+      video_url = publicUrl;
+    }
+
+    // Upload PDF if provided
+    if (pdfFile && (training.content_type === 'readable' || training.content_type === 'both')) {
+      setUploadProgress('Uploading PDF...');
+      const fileName = `${Date.now()}.pdf`;
+      const { data: pdfData, error: pdfError } = await supabase.storage
+        .from('training-pdfs')
+        .upload(fileName, pdfFile);
+      if (pdfError) {
+        alert('PDF upload failed: ' + pdfError.message);
+        setUploadProgress('');
+        return;
+      }
+      const { data: { publicUrl } } = supabase.storage.from('training-pdfs').getPublicUrl(fileName);
+      content_pdf_url = publicUrl;
+    }
+
+    setUploadProgress('Saving to database...');
     const { data } = await supabase.from('trainings').insert([{
-      title: training.title, category: training.category,
-      recurrence: training.recurrence, description: training.description, status: training.status
+      title: training.title,
+      category: training.category,
+      recurrence: training.recurrence,
+      description: training.description,
+      status: training.status,
+      content_type: training.content_type,
+      video_url,
+      content_text: training.content_text || null,
+      content_pdf_url,
     }]).select();
+
     if (data) {
       setTrainings([...trainings, data[0]]);
       setShowAddTraining(false);
-      setNewTraining({title: '', category: 'All Staff', recurrence: 'Annual', description: '', status: 'Active'});
+      setNewTraining({title: '', category: 'All Staff', recurrence: 'Annual', description: '', status: 'Active', content_type: 'video', content_text: ''});
+      setVideoFile(null);
+      setPdfFile(null);
+      setUploadProgress('');
     }
   };
 
@@ -274,7 +330,6 @@ export default function DashboardPage() {
               <h1 className="text-2xl font-bold mb-1" style={{color: '#0D2035'}}>Admin Dashboard</h1>
               <p className="text-sm mb-8" style={{color: '#6B7280'}}>Platform-wide overview — business health, not compliance.</p>
 
-              {/* Quick Actions */}
               <div className="flex gap-3 mb-8 flex-wrap">
                 {[
                   { label: '+ Create Organization', action: () => { setActivePage('organizations'); setShowAddOrg(true); } },
@@ -287,7 +342,6 @@ export default function DashboardPage() {
                 ))}
               </div>
 
-              {/* Assign Training Modal */}
               {showAssignTraining && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor: 'rgba(0,0,0,0.4)'}}>
                   <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
@@ -333,7 +387,6 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {/* Attention Needed */}
               {(() => {
                 const notSetUp = organizations.filter(o => getOrgStatus(o) === 'Not Set Up');
                 const nearLimit = organizations.filter(o => getOrgCapacityStatus(o) === 'near_limit');
@@ -343,23 +396,14 @@ export default function DashboardPage() {
                   <div className="rounded-xl border border-orange-200 bg-orange-50 p-5 mb-8">
                     <p className="text-sm font-bold mb-3" style={{color: '#92400E'}}>🚨 Attention Needed</p>
                     <ul className="space-y-1">
-                      {notSetUp.length > 0 && <li className="text-sm text-orange-700">• {notSetUp.length} organization{notSetUp.length > 1 ? 's' : ''} not fully set up (no users added)</li>}
-                      {atLimit.map(o => {
-                        const count = getOrgUserCount(o.id);
-                        const limit = getPlanLimit(o.billing_plan);
-                        return <li key={o.id} className="text-sm text-red-700 font-semibold">• {o.name} has reached their plan limit ({count}/{limit} staff) — upgrade required to add more</li>;
-                      })}
-                      {nearLimit.map(o => {
-                        const count = getOrgUserCount(o.id);
-                        const limit = getPlanLimit(o.billing_plan);
-                        return <li key={o.id} className="text-sm text-orange-700">• {o.name} is approaching their plan limit ({count}/{limit} staff on {o.billing_plan})</li>;
-                      })}
+                      {notSetUp.length > 0 && <li className="text-sm text-orange-700">• {notSetUp.length} organization{notSetUp.length > 1 ? 's' : ''} not fully set up</li>}
+                      {atLimit.map(o => { const count = getOrgUserCount(o.id); const limit = getPlanLimit(o.billing_plan); return <li key={o.id} className="text-sm text-red-700 font-semibold">• {o.name} has reached their plan limit ({count}/{limit} staff)</li>; })}
+                      {nearLimit.map(o => { const count = getOrgUserCount(o.id); const limit = getPlanLimit(o.billing_plan); return <li key={o.id} className="text-sm text-orange-700">• {o.name} is approaching their plan limit ({count}/{limit} staff on {o.billing_plan})</li>; })}
                     </ul>
                   </div>
                 );
               })()}
 
-              {/* Platform Snapshot */}
               <h2 className="text-xs font-bold uppercase mb-4" style={{color: '#6B7280'}}>Platform Snapshot</h2>
               <div className="grid grid-cols-3 gap-4 mb-8">
                 {[
@@ -377,7 +421,6 @@ export default function DashboardPage() {
                 ))}
               </div>
 
-              {/* Org Management Table */}
               <div className="bg-white rounded-xl shadow p-6 mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold" style={{color: '#0D2035'}}>Organization Management</h2>
@@ -412,7 +455,7 @@ export default function DashboardPage() {
                           <td className="py-3 text-gray-500 text-xs">{org.billing_plan || '—'}</td>
                           <td className="py-3">
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-500">{count}{limit < 999 ? `/${limit}` : ''}</span>
+                              <span className="text-gray-500">{count}</span>
                               {capStatus === 'at_limit' && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{backgroundColor: '#FEE2E2', color: '#DC2626'}}>At Limit</span>}
                               {capStatus === 'near_limit' && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{backgroundColor: '#FEF9C3', color: '#CA8A04'}}>90%</span>}
                             </div>
@@ -420,17 +463,12 @@ export default function DashboardPage() {
                           <td className="py-3 text-gray-500">{getOrgAssignments(org.id)}</td>
                           <td className="py-3 text-gray-500">{getLastActivity(org.id)}</td>
                           <td className="py-3">
-                            <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                              style={{backgroundColor: s.bg, color: s.color}}>{status}</span>
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold" style={{backgroundColor: s.bg, color: s.color}}>{status}</span>
                           </td>
                           <td className="py-3">
                             <div className="flex gap-2">
-                              <button onClick={() => handleManageOrg(org)}
-                                className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
-                                style={{backgroundColor: '#0D2035'}}>Manage</button>
-                              <button onClick={() => handleImpersonate(org)}
-                                className="text-xs font-semibold px-3 py-1 rounded-lg"
-                                style={{backgroundColor: '#F3F4F6', color: '#0D2035'}}>Impersonate</button>
+                              <button onClick={() => handleManageOrg(org)} className="text-xs font-semibold px-3 py-1 rounded-lg text-white" style={{backgroundColor: '#0D2035'}}>Manage</button>
+                              <button onClick={() => handleImpersonate(org)} className="text-xs font-semibold px-3 py-1 rounded-lg" style={{backgroundColor: '#F3F4F6', color: '#0D2035'}}>Impersonate</button>
                             </div>
                           </td>
                         </tr>
@@ -440,7 +478,6 @@ export default function DashboardPage() {
                 </table>
               </div>
 
-              {/* Activity Feed */}
               <div className="bg-white rounded-xl shadow p-6">
                 <h2 className="text-lg font-bold mb-4" style={{color: '#0D2035'}}>System Activity Feed</h2>
                 {completions.length === 0 ? (
@@ -465,89 +502,59 @@ export default function DashboardPage() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold" style={{color: '#0D2035'}}>All Organizations</h1>
-                <button onClick={() => setShowAddOrg(true)}
-                  className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                  style={{backgroundColor: '#0D9488'}}>+ Add Organization</button>
+                <button onClick={() => setShowAddOrg(true)} className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>+ Add Organization</button>
               </div>
 
               {showAddOrg && (
                 <div className="bg-white rounded-xl shadow p-6 mb-6">
                   <h2 className="text-lg font-bold mb-4" style={{color: '#0D2035'}}>New Organization</h2>
                   <div className="grid grid-cols-2 gap-4">
-
-                    {/* Basic Info */}
                     <div>
                       <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Organization Name</label>
-                      <input type="text" value={newOrg.name} onChange={(e) => setNewOrg({...newOrg, name: e.target.value})}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                      <input type="text" value={newOrg.name} onChange={(e) => setNewOrg({...newOrg, name: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Phone Number</label>
-                      <input type="tel" value={newOrg.phone} onChange={(e) => setNewOrg({...newOrg, phone: e.target.value})}
-                        placeholder="(555) 555-5555"
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                      <input type="tel" value={newOrg.phone} onChange={(e) => setNewOrg({...newOrg, phone: e.target.value})} placeholder="(555) 555-5555" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
                     </div>
-
-                    {/* Address */}
                     <div className="col-span-2">
                       <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Street Address</label>
-                      <input type="text" value={newOrg.address} onChange={(e) => setNewOrg({...newOrg, address: e.target.value})}
-                        placeholder="123 Main Street"
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                      <input type="text" value={newOrg.address} onChange={(e) => setNewOrg({...newOrg, address: e.target.value})} placeholder="123 Main Street" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>City</label>
-                      <input type="text" value={newOrg.city} onChange={(e) => setNewOrg({...newOrg, city: e.target.value})}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                      <input type="text" value={newOrg.city} onChange={(e) => setNewOrg({...newOrg, city: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>State</label>
-                        <input type="text" value={newOrg.state} onChange={(e) => setNewOrg({...newOrg, state: e.target.value})}
-                          placeholder="MD"
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                        <input type="text" value={newOrg.state} onChange={(e) => setNewOrg({...newOrg, state: e.target.value})} placeholder="MD" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
                       </div>
                       <div>
                         <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Zip</label>
-                        <input type="text" value={newOrg.zip} onChange={(e) => setNewOrg({...newOrg, zip: e.target.value})}
-                          placeholder="21201"
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                        <input type="text" value={newOrg.zip} onChange={(e) => setNewOrg({...newOrg, zip: e.target.value})} placeholder="21201" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
                       </div>
                     </div>
-
-                    {/* Branch Admin */}
                     <div>
                       <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Branch Admin Name</label>
-                      <input type="text" value={newOrg.adminName} onChange={(e) => setNewOrg({...newOrg, adminName: e.target.value})}
-                        placeholder="Full name"
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                      <input type="text" value={newOrg.adminName} onChange={(e) => setNewOrg({...newOrg, adminName: e.target.value})} placeholder="Full name" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Branch Admin Email</label>
-                      <input type="email" value={newOrg.adminEmail} onChange={(e) => setNewOrg({...newOrg, adminEmail: e.target.value})}
-                        placeholder="admin@organization.com"
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                      <input type="email" value={newOrg.adminEmail} onChange={(e) => setNewOrg({...newOrg, adminEmail: e.target.value})} placeholder="admin@organization.com" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
                     </div>
-
-                    {/* Billing Plan */}
                     <div>
                       <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Billing Plan</label>
-                      <select value={newOrg.billing_plan} onChange={(e) => setNewOrg({...newOrg, billing_plan: e.target.value})}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+                      <select value={newOrg.billing_plan} onChange={(e) => setNewOrg({...newOrg, billing_plan: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
                         {Object.keys(BILLING_PLANS).map(plan => <option key={plan}>{plan}</option>)}
                       </select>
                     </div>
-
-                    {/* Status */}
                     <div>
                       <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Status</label>
-                      <select value={newOrg.status} onChange={(e) => setNewOrg({...newOrg, status: e.target.value})}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+                      <select value={newOrg.status} onChange={(e) => setNewOrg({...newOrg, status: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
                         <option>Active</option><option>Inactive</option>
                       </select>
                     </div>
-
-                    {/* Level of Care */}
                     <div className="col-span-2">
                       <label className="block text-xs font-semibold uppercase mb-2" style={{color: '#6B7280'}}>Level of Care</label>
                       <div className="grid grid-cols-2 gap-2">
@@ -564,16 +571,10 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-
                   <div className="flex gap-3 mt-4">
-                    <button onClick={() => {
-                      saveOrganization(newOrg);
-                      setNewOrg({name:'',types:[],phone:'',status:'Active',adminName:'',adminEmail:'',address:'',city:'',state:'',zip:'',billing_plan:'Starter — up to 15'});
-                      setShowAddOrg(false);
-                    }} className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                      style={{backgroundColor: '#0D9488'}}>Save Organization</button>
-                    <button onClick={() => setShowAddOrg(false)}
-                      className="text-sm font-semibold px-4 py-2 rounded-lg text-gray-500 bg-gray-100">Cancel</button>
+                    <button onClick={() => { saveOrganization(newOrg); setNewOrg({name:'',types:[],phone:'',status:'Active',adminName:'',adminEmail:'',address:'',city:'',state:'',zip:'',billing_plan:'Starter — up to 15'}); setShowAddOrg(false); }}
+                      className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>Save Organization</button>
+                    <button onClick={() => setShowAddOrg(false)} className="text-sm font-semibold px-4 py-2 rounded-lg text-gray-500 bg-gray-100">Cancel</button>
                   </div>
                 </div>
               )}
@@ -606,23 +607,16 @@ export default function DashboardPage() {
                           <td className="py-3 text-gray-500">{org.city && org.state ? `${org.city}, ${org.state}` : '—'}</td>
                           <td className="py-3">
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-500">{count}{limit < 999 ? `/${limit}` : ''}</span>
+                              <span className="text-gray-500">{count}</span>
                               {capStatus === 'at_limit' && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{backgroundColor: '#FEE2E2', color: '#DC2626'}}>At Limit</span>}
                               {capStatus === 'near_limit' && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{backgroundColor: '#FEF9C3', color: '#CA8A04'}}>90%</span>}
                             </div>
                           </td>
-                          <td className="py-3">
-                            <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                              style={{backgroundColor: s.bg, color: s.color}}>{status}</span>
-                          </td>
+                          <td className="py-3"><span className="px-2 py-1 rounded-full text-xs font-semibold" style={{backgroundColor: s.bg, color: s.color}}>{status}</span></td>
                           <td className="py-3">
                             <div className="flex gap-2">
-                              <button onClick={() => handleManageOrg(org)}
-                                className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
-                                style={{backgroundColor: '#0D2035'}}>Manage</button>
-                              <button onClick={() => handleImpersonate(org)}
-                                className="text-xs font-semibold px-3 py-1 rounded-lg"
-                                style={{backgroundColor: '#F3F4F6', color: '#0D2035'}}>Impersonate</button>
+                              <button onClick={() => handleManageOrg(org)} className="text-xs font-semibold px-3 py-1 rounded-lg text-white" style={{backgroundColor: '#0D2035'}}>Manage</button>
+                              <button onClick={() => handleImpersonate(org)} className="text-xs font-semibold px-3 py-1 rounded-lg" style={{backgroundColor: '#F3F4F6', color: '#0D2035'}}>Impersonate</button>
                             </div>
                           </td>
                         </tr>
@@ -639,14 +633,15 @@ export default function DashboardPage() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold" style={{color: '#0D2035'}}>Training Library</h1>
-                <button onClick={() => setShowAddTraining(true)}
-                  className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                  style={{backgroundColor: '#0D9488'}}>+ Add Training</button>
+                <button onClick={() => setShowAddTraining(true)} className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>+ Add Training</button>
               </div>
+
               {showAddTraining && (
                 <div className="bg-white rounded-xl shadow p-6 mb-6">
                   <h2 className="text-lg font-bold mb-4" style={{color: '#0D2035'}}>New Training</h2>
                   <div className="grid grid-cols-2 gap-4">
+
+                    {/* Basic Info */}
                     <div className="col-span-2">
                       <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Training Name</label>
                       <input type="text" value={newTraining.title} onChange={(e) => setNewTraining({...newTraining, title: e.target.value})}
@@ -669,23 +664,74 @@ export default function DashboardPage() {
                     <div className="col-span-2">
                       <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Description</label>
                       <textarea value={newTraining.description} onChange={(e) => setNewTraining({...newTraining, description: e.target.value})}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" rows={3} />
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" rows={2} />
                     </div>
+
+                    {/* Content Type */}
+                    <div className="col-span-2 mt-2">
+                      <p className="text-xs font-bold uppercase mb-3" style={{color: '#0D9488'}}>Training Content</p>
+                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Content Type</label>
+                      <select value={newTraining.content_type} onChange={(e) => setNewTraining({...newTraining, content_type: e.target.value})}
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black mb-4">
+                        <option value="video">Video</option>
+                        <option value="readable">Readable (Text + PDF)</option>
+                        <option value="both">Both (Video + Readable)</option>
+                      </select>
+                    </div>
+
+                    {/* Video Upload */}
+                    {(newTraining.content_type === 'video' || newTraining.content_type === 'both') && (
+                      <div className="col-span-2">
+                        <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Upload Video</label>
+                        <input type="file" accept="video/*"
+                          onChange={(e) => setVideoFile(e.target.files[0])}
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                        {videoFile && <p className="text-xs mt-1" style={{color: '#0D9488'}}>✅ {videoFile.name}</p>}
+                      </div>
+                    )}
+
+                    {/* Readable Content */}
+                    {(newTraining.content_type === 'readable' || newTraining.content_type === 'both') && (
+                      <>
+                        <div className="col-span-2">
+                          <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Text Content</label>
+                          <textarea value={newTraining.content_text} onChange={(e) => setNewTraining({...newTraining, content_text: e.target.value})}
+                            placeholder="Paste or type the training content here..."
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" rows={6} />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Upload PDF (optional)</label>
+                          <input type="file" accept=".pdf"
+                            onChange={(e) => setPdfFile(e.target.files[0])}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                          {pdfFile && <p className="text-xs mt-1" style={{color: '#0D9488'}}>✅ {pdfFile.name}</p>}
+                        </div>
+                      </>
+                    )}
                   </div>
+
+                  {uploadProgress && (
+                    <div className="mt-4 rounded-lg p-3" style={{backgroundColor: '#F0FDF4'}}>
+                      <p className="text-sm font-medium" style={{color: '#16A34A'}}>⏳ {uploadProgress}</p>
+                    </div>
+                  )}
+
                   <div className="flex gap-3 mt-4">
                     <button onClick={() => saveTraining(newTraining)}
                       className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
                       style={{backgroundColor: '#0D9488'}}>Save Training</button>
-                    <button onClick={() => setShowAddTraining(false)}
+                    <button onClick={() => { setShowAddTraining(false); setVideoFile(null); setPdfFile(null); }}
                       className="text-sm font-semibold px-4 py-2 rounded-lg text-gray-500 bg-gray-100">Cancel</button>
                   </div>
                 </div>
               )}
+
               <div className="bg-white rounded-xl shadow p-6">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
                       <th className="text-left pb-3">Training Name</th>
+                      <th className="text-left pb-3">Content Type</th>
                       <th className="text-left pb-3">Category</th>
                       <th className="text-left pb-3">Recurrence</th>
                       <th className="text-left pb-3">Status</th>
@@ -693,10 +739,11 @@ export default function DashboardPage() {
                   </thead>
                   <tbody>
                     {trainings.length === 0 ? (
-                      <tr><td colSpan="4" className="py-6 text-center" style={{color: '#6B7280'}}>No trainings yet.</td></tr>
+                      <tr><td colSpan="5" className="py-6 text-center" style={{color: '#6B7280'}}>No trainings yet.</td></tr>
                     ) : trainings.map(training => (
                       <tr key={training.id} className="border-b border-gray-50">
                         <td className="py-3 font-medium" style={{color: '#0D9488'}}>{training.title}</td>
+                        <td className="py-3 text-gray-500 capitalize">{training.content_type || '—'}</td>
                         <td className="py-3 text-gray-500">{training.category}</td>
                         <td className="py-3 text-gray-500">{training.recurrence}</td>
                         <td className="py-3">
@@ -719,9 +766,7 @@ export default function DashboardPage() {
             <div>
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-2xl font-bold" style={{color: '#0D2035'}}>Assignments</h1>
-                <button onClick={() => setShowAssignTraining(true)}
-                  className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                  style={{backgroundColor: '#0D9488'}}>⚡ Assign Training</button>
+                <button onClick={() => setShowAssignTraining(true)} className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>⚡ Assign Training</button>
               </div>
               <div className="bg-white rounded-xl shadow p-6">
                 <table className="w-full text-sm">
@@ -746,10 +791,7 @@ export default function DashboardPage() {
                           <td className="py-3 text-gray-500">{org?.name || '—'}</td>
                           <td className="py-3 text-gray-500">{a.due_date}</td>
                           <td className="py-3 text-gray-500">{a.assigned_at ? new Date(a.assigned_at).toLocaleDateString() : '—'}</td>
-                          <td className="py-3">
-                            <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                              style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}>{a.status || 'Active'}</span>
-                          </td>
+                          <td className="py-3"><span className="px-2 py-1 rounded-full text-xs font-semibold" style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}>{a.status || 'Active'}</span></td>
                         </tr>
                       );
                     })}
