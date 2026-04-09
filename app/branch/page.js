@@ -169,7 +169,7 @@ export default function BranchPage() {
 
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-4" style={{backgroundColor: '#0D2035'}}>
-        <img src="/ImpactWorkforce.png" alt="Impact Workforce" className="h-10" />
+      <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '44px', width: 'auto', objectFit: 'contain'}} />
         <div className="flex items-center gap-4">
           {isImpersonating && (
             <span className="text-xs font-semibold px-3 py-1 rounded-full"
