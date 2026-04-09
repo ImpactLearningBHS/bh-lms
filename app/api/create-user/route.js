@@ -143,6 +143,9 @@ export async function POST(request) {
   // 4. Get the invite link from inviteData
   const setupUrl = inviteData.user?.action_link || 'https://impactworkforcesystems.com/login';
 
+  console.log('About to send welcome email to:', email, 'role:', role, 'RESEND_KEY exists:', !!RESEND_API_KEY);
+// 5. Send role-based welcome email via Resend
+await sendWelcomeEmail(email, full_name, role, orgName, setupUrl);
   // 5. Send role-based welcome email via Resend
   await sendWelcomeEmail(email, full_name, role, orgName, setupUrl);
 
