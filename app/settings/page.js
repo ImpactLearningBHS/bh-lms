@@ -245,32 +245,6 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Billing */}
-            <div className="bg-white rounded-xl shadow p-6">
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h2 className="text-base font-bold" style={{color: '#0D2035'}}>Billing & Subscription</h2>
-                  <p className="text-xs mt-0.5" style={{color: '#6B7280'}}>Your Impact Workforce plan details</p>
-                </div>
-                <SaveButton section="billing" fields={['billing_plan','billing_email']} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Current Plan</label>
-                  <input type="text" value={settings.billing_plan || ''}
-                    onChange={(e) => setSettings({...settings, billing_plan: e.target.value})}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Billing Email</label>
-                  <input type="email" value={settings.billing_email || ''}
-                    onChange={(e) => setSettings({...settings, billing_email: e.target.value})}
-                    placeholder="billing@yourcompany.com"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                </div>
-              </div>
-            </div>
-
             {/* Maintenance Mode */}
             <div className="bg-white rounded-xl shadow p-6">
               <div className="flex items-center justify-between mb-5">
