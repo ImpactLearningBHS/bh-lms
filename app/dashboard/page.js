@@ -291,7 +291,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-4" style={{backgroundColor: '#0D2035'}}>
       <div style={{backgroundColor: 'white', borderRadius: '8px', padding: '4px 10px', display: 'inline-flex', alignItems: 'center'}}>
-  <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '36px', width: 'auto', objectFit: 'contain'}} />
+      <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '50px', width: 'auto', objectFit: 'contain'}} />
 </div>
 
         <div className="flex items-center gap-4">
