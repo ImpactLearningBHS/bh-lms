@@ -39,6 +39,14 @@ export default function DashboardPage() {
   const [newAssignment, setNewAssignment] = useState({training_id: '', organization_id: 'all'});
   const [assignSuccess, setAssignSuccess] = useState('');
   const [platformSettings, setPlatformSettings] = useState({ default_due_days: 15, support_email: 'impactlearningbhs@gmail.com' });
+
+  // Edit training state
+  const [editingTraining, setEditingTraining] = useState(null);
+  const [editVideoFile, setEditVideoFile] = useState(null);
+  const [editPdfFile, setEditPdfFile] = useState(null);
+  const [editUploadProgress, setEditUploadProgress] = useState('');
+  const [editSaved, setEditSaved] = useState(false);
+
   const [snapshot, setSnapshot] = useState({
     totalOrgs: 0, activeOrgs: 0, totalUsers: 0,
     trainingsInLibrary: 0, trainingsAssigned: 0, completionRate: 0,
@@ -59,7 +67,7 @@ export default function DashboardPage() {
   const fetchAll = async () => {
     await Promise.all([fetchOrganizations(), fetchTrainings(), fetchCompletions(), fetchAllUsers(), fetchAssignments(), fetchSettings()]);
   };
-  
+
   const fetchSettings = async () => {
     const { data } = await supabase.from('settings').select('*').single();
     if (data) setPlatformSettings(data);
@@ -152,7 +160,6 @@ export default function DashboardPage() {
   };
 
   const getOrgUserCount = (orgId) => allUsers.filter(u => u.organization_id === orgId).length;
-
   const getOrgCompletions = (orgId) => {
     const ids = allUsers.filter(u => u.organization_id === orgId).map(u => u.id);
     return completions.filter(c => ids.includes(c.user_id)).length;
@@ -183,78 +190,91 @@ export default function DashboardPage() {
     let video_url = null;
     let content_pdf_url = null;
 
-    // Upload video if provided
-    if (videoFile && training.content_type === 'video') {
+    if (videoFile && (training.content_type === 'video' || training.content_type === 'both')) {
       setUploadProgress('Uploading video...');
       const fileExt = videoFile.name.split('.').pop();
       const fileName = `${Date.now()}.${fileExt}`;
-      const { data: videoData, error: videoError } = await supabase.storage
-        .from('training-videos')
-        .upload(fileName, videoFile);
-      if (videoError) {
-        alert('Video upload failed: ' + videoError.message);
-        setUploadProgress('');
-        return;
-      }
+      const { error: videoError } = await supabase.storage.from('training-videos').upload(fileName, videoFile);
+      if (videoError) { alert('Video upload failed: ' + videoError.message); setUploadProgress(''); return; }
       const { data: { publicUrl } } = supabase.storage.from('training-videos').getPublicUrl(fileName);
       video_url = publicUrl;
     }
 
-    // Upload PDF if provided
     if (pdfFile && (training.content_type === 'readable' || training.content_type === 'both')) {
       setUploadProgress('Uploading PDF...');
       const fileName = `${Date.now()}.pdf`;
-      const { data: pdfData, error: pdfError } = await supabase.storage
-        .from('training-pdfs')
-        .upload(fileName, pdfFile);
-      if (pdfError) {
-        alert('PDF upload failed: ' + pdfError.message);
-        setUploadProgress('');
-        return;
-      }
+      const { error: pdfError } = await supabase.storage.from('training-pdfs').upload(fileName, pdfFile);
+      if (pdfError) { alert('PDF upload failed: ' + pdfError.message); setUploadProgress(''); return; }
       const { data: { publicUrl } } = supabase.storage.from('training-pdfs').getPublicUrl(fileName);
       content_pdf_url = publicUrl;
     }
 
     setUploadProgress('Saving to database...');
     const { data } = await supabase.from('trainings').insert([{
-      title: training.title,
-      category: training.category,
-      recurrence: training.recurrence,
-      description: training.description,
-      status: training.status,
-      content_type: training.content_type,
-      video_url,
-      content_text: training.content_text || null,
-      content_pdf_url,
+      title: training.title, category: training.category, recurrence: training.recurrence,
+      description: training.description, status: training.status, content_type: training.content_type,
+      video_url, content_text: training.content_text || null, content_pdf_url,
     }]).select();
 
     if (data) {
       setTrainings([...trainings, data[0]]);
       setShowAddTraining(false);
       setNewTraining({title: '', category: 'All Staff', recurrence: 'Annual', description: '', status: 'Active', content_type: 'video', content_text: ''});
-      setVideoFile(null);
-      setPdfFile(null);
-      setUploadProgress('');
+      setVideoFile(null); setPdfFile(null); setUploadProgress('');
+    }
+  };
+
+  const saveEditTraining = async () => {
+    setEditUploadProgress('Saving...');
+    let updates = {
+      title: editingTraining.title,
+      category: editingTraining.category,
+      recurrence: editingTraining.recurrence,
+      description: editingTraining.description,
+      status: editingTraining.status,
+      content_type: editingTraining.content_type,
+      content_text: editingTraining.content_text || null,
+    };
+
+    if (editVideoFile) {
+      setEditUploadProgress('Uploading video...');
+      const fileExt = editVideoFile.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const { error } = await supabase.storage.from('training-videos').upload(fileName, editVideoFile);
+      if (error) { alert('Video upload failed: ' + error.message); setEditUploadProgress(''); return; }
+      const { data: { publicUrl } } = supabase.storage.from('training-videos').getPublicUrl(fileName);
+      updates.video_url = publicUrl;
+    }
+
+    if (editPdfFile) {
+      setEditUploadProgress('Uploading PDF...');
+      const fileName = `${Date.now()}.pdf`;
+      const { error } = await supabase.storage.from('training-pdfs').upload(fileName, editPdfFile);
+      if (error) { alert('PDF upload failed: ' + error.message); setEditUploadProgress(''); return; }
+      const { data: { publicUrl } } = supabase.storage.from('training-pdfs').getPublicUrl(fileName);
+      updates.content_pdf_url = publicUrl;
+    }
+
+    const { data } = await supabase.from('trainings').update(updates).eq('id', editingTraining.id).select();
+    if (data) {
+      setTrainings(trainings.map(t => t.id === data[0].id ? data[0] : t));
+      setEditSaved(true);
+      setEditUploadProgress('');
+      setTimeout(() => { setEditSaved(false); setEditingTraining(null); setEditVideoFile(null); setEditPdfFile(null); }, 1500);
     }
   };
 
   const saveOrganization = async (org) => {
     const { data } = await supabase.from('organizations').insert([{
       name: org.name, type: org.types?.join(', '), phone: org.phone, status: org.status,
-      address: org.address, city: org.city, state: org.state, zip: org.zip,
-      billing_plan: org.billing_plan
+      address: org.address, city: org.city, state: org.state, zip: org.zip, billing_plan: org.billing_plan
     }]).select();
     if (data) {
       setOrganizations([...organizations, data[0]]);
       if (org.adminName && org.adminEmail) {
         await fetch('/api/create-user', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            full_name: org.adminName, email: org.adminEmail,
-            role: 'Branch Admin', hire_date: null, status: 'Active', organization_id: data[0].id
-          })
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ full_name: org.adminName, email: org.adminEmail, role: 'Branch Admin', hire_date: null, status: 'Active', organization_id: data[0].id })
         });
       }
     }
@@ -290,15 +310,12 @@ export default function DashboardPage() {
 
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-4" style={{backgroundColor: '#0D2035'}}>
-      <div style={{backgroundColor: 'white', borderRadius: '8px', padding: '4px 10px', display: 'inline-flex', alignItems: 'center'}}>
-      <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '50px', width: 'auto', objectFit: 'contain'}} />
-</div>
-
+        <div style={{backgroundColor: 'white', borderRadius: '8px', padding: '4px 10px', display: 'inline-flex', alignItems: 'center'}}>
+          <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '50px', width: 'auto', objectFit: 'contain'}} />
+        </div>
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium text-white">Platform Admin</span>
-          <button onClick={() => window.location.href = '/login'}
-            className="text-sm font-medium px-4 py-2 rounded-lg text-white"
-            style={{backgroundColor: '#0D9488'}}>Log Out</button>
+          <button onClick={() => window.location.href = '/login'} className="text-sm font-medium px-4 py-2 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>Log Out</button>
         </div>
       </div>
 
@@ -307,7 +324,6 @@ export default function DashboardPage() {
         {/* Sidebar */}
         <div className="w-64 flex flex-col py-6 px-4 gap-1" style={{backgroundColor: '#0D2035'}}>
           <div className="px-4 mb-6 pb-6 border-b border-white/10">
-          
             <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Platform Admin</p>
             <p className="text-sm font-bold text-white">Administrator</p>
             <p className="text-xs" style={{color: '#6B7280'}}>All Organizations</p>
@@ -326,8 +342,7 @@ export default function DashboardPage() {
             </button>
           ))}
           <div className="mt-auto px-4 pt-6 border-t border-white/10">
-            <button onClick={() => window.location.href = '/login'}
-              className="text-sm font-medium w-full text-left" style={{color: '#6B7280'}}>Sign Out</button>
+            <button onClick={() => window.location.href = '/login'} className="text-sm font-medium w-full text-left" style={{color: '#6B7280'}}>Sign Out</button>
           </div>
         </div>
 
@@ -346,9 +361,7 @@ export default function DashboardPage() {
                   { label: '+ Add Training', action: () => { setActivePage('trainings'); setShowAddTraining(true); } },
                   { label: '⚡ Assign Training', action: () => setShowAssignTraining(true) },
                 ].map(btn => (
-                  <button key={btn.label} onClick={btn.action}
-                    className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                    style={{backgroundColor: '#0D9488'}}>{btn.label}</button>
+                  <button key={btn.label} onClick={btn.action} className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>{btn.label}</button>
                 ))}
               </div>
 
@@ -360,8 +373,7 @@ export default function DashboardPage() {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Select Training</label>
-                        <select value={newAssignment.training_id} onChange={(e) => setNewAssignment({...newAssignment, training_id: e.target.value})}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+                        <select value={newAssignment.training_id} onChange={(e) => setNewAssignment({...newAssignment, training_id: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
                           <option value="">-- Choose a training --</option>
                           <option value="all">⚡ All Trainings</option>
                           {trainings.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
@@ -369,8 +381,7 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Assign To</label>
-                        <select value={newAssignment.organization_id} onChange={(e) => setNewAssignment({...newAssignment, organization_id: e.target.value})}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+                        <select value={newAssignment.organization_id} onChange={(e) => setNewAssignment({...newAssignment, organization_id: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
                           <option value="all">All Organizations</option>
                           {organizations.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
                         </select>
@@ -387,11 +398,8 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <div className="flex gap-3 mt-6">
-                      <button onClick={saveAssignment} disabled={!newAssignment.training_id}
-                        className="flex-1 py-2 rounded-lg text-white font-semibold text-sm"
-                        style={{backgroundColor: newAssignment.training_id ? '#0D9488' : '#D1D5DB'}}>Assign Training</button>
-                      <button onClick={() => { setShowAssignTraining(false); setNewAssignment({training_id: '', organization_id: 'all'}); setAssignSuccess(''); }}
-                        className="flex-1 py-2 rounded-lg text-gray-500 bg-gray-100 font-semibold text-sm">Cancel</button>
+                      <button onClick={saveAssignment} disabled={!newAssignment.training_id} className="flex-1 py-2 rounded-lg text-white font-semibold text-sm" style={{backgroundColor: newAssignment.training_id ? '#0D9488' : '#D1D5DB'}}>Assign Training</button>
+                      <button onClick={() => { setShowAssignTraining(false); setNewAssignment({training_id: '', organization_id: 'all'}); setAssignSuccess(''); }} className="flex-1 py-2 rounded-lg text-gray-500 bg-gray-100 font-semibold text-sm">Cancel</button>
                     </div>
                   </div>
                 </div>
@@ -434,9 +442,7 @@ export default function DashboardPage() {
               <div className="bg-white rounded-xl shadow p-6 mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold" style={{color: '#0D2035'}}>Organization Management</h2>
-                  <button onClick={() => { setActivePage('organizations'); setShowAddOrg(true); }}
-                    className="text-sm font-semibold px-3 py-1 rounded-lg text-white"
-                    style={{backgroundColor: '#0D9488'}}>+ Add Organization</button>
+                  <button onClick={() => { setActivePage('organizations'); setShowAddOrg(true); }} className="text-sm font-semibold px-3 py-1 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>+ Add Organization</button>
                 </div>
                 <table className="w-full text-sm">
                   <thead>
@@ -457,7 +463,6 @@ export default function DashboardPage() {
                       const status = getOrgStatus(org);
                       const s = statusStyle(status);
                       const count = getOrgUserCount(org.id);
-                      const limit = getPlanLimit(org.billing_plan);
                       const capStatus = getOrgCapacityStatus(org);
                       return (
                         <tr key={org.id} className="border-b border-gray-50">
@@ -472,9 +477,7 @@ export default function DashboardPage() {
                           </td>
                           <td className="py-3 text-gray-500">{getOrgAssignments(org.id)}</td>
                           <td className="py-3 text-gray-500">{getLastActivity(org.id)}</td>
-                          <td className="py-3">
-                            <span className="px-2 py-1 rounded-full text-xs font-semibold" style={{backgroundColor: s.bg, color: s.color}}>{status}</span>
-                          </td>
+                          <td className="py-3"><span className="px-2 py-1 rounded-full text-xs font-semibold" style={{backgroundColor: s.bg, color: s.color}}>{status}</span></td>
                           <td className="py-3">
                             <div className="flex gap-2">
                               <button onClick={() => handleManageOrg(org)} className="text-xs font-semibold px-3 py-1 rounded-lg text-white" style={{backgroundColor: '#0D2035'}}>Manage</button>
@@ -519,62 +522,24 @@ export default function DashboardPage() {
                 <div className="bg-white rounded-xl shadow p-6 mb-6">
                   <h2 className="text-lg font-bold mb-4" style={{color: '#0D2035'}}>New Organization</h2>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Organization Name</label>
-                      <input type="text" value={newOrg.name} onChange={(e) => setNewOrg({...newOrg, name: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Phone Number</label>
-                      <input type="tel" value={newOrg.phone} onChange={(e) => setNewOrg({...newOrg, phone: e.target.value})} placeholder="(555) 555-5555" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Street Address</label>
-                      <input type="text" value={newOrg.address} onChange={(e) => setNewOrg({...newOrg, address: e.target.value})} placeholder="123 Main Street" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>City</label>
-                      <input type="text" value={newOrg.city} onChange={(e) => setNewOrg({...newOrg, city: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                    </div>
+                    <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Organization Name</label><input type="text" value={newOrg.name} onChange={(e) => setNewOrg({...newOrg, name: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" /></div>
+                    <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Phone Number</label><input type="tel" value={newOrg.phone} onChange={(e) => setNewOrg({...newOrg, phone: e.target.value})} placeholder="(555) 555-5555" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" /></div>
+                    <div className="col-span-2"><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Street Address</label><input type="text" value={newOrg.address} onChange={(e) => setNewOrg({...newOrg, address: e.target.value})} placeholder="123 Main Street" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" /></div>
+                    <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>City</label><input type="text" value={newOrg.city} onChange={(e) => setNewOrg({...newOrg, city: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" /></div>
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>State</label>
-                        <input type="text" value={newOrg.state} onChange={(e) => setNewOrg({...newOrg, state: e.target.value})} placeholder="MD" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Zip</label>
-                        <input type="text" value={newOrg.zip} onChange={(e) => setNewOrg({...newOrg, zip: e.target.value})} placeholder="21201" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                      </div>
+                      <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>State</label><input type="text" value={newOrg.state} onChange={(e) => setNewOrg({...newOrg, state: e.target.value})} placeholder="MD" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" /></div>
+                      <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Zip</label><input type="text" value={newOrg.zip} onChange={(e) => setNewOrg({...newOrg, zip: e.target.value})} placeholder="21201" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" /></div>
                     </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Branch Admin Name</label>
-                      <input type="text" value={newOrg.adminName} onChange={(e) => setNewOrg({...newOrg, adminName: e.target.value})} placeholder="Full name" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Branch Admin Email</label>
-                      <input type="email" value={newOrg.adminEmail} onChange={(e) => setNewOrg({...newOrg, adminEmail: e.target.value})} placeholder="admin@organization.com" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Billing Plan</label>
-                      <select value={newOrg.billing_plan} onChange={(e) => setNewOrg({...newOrg, billing_plan: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
-                        {Object.keys(BILLING_PLANS).map(plan => <option key={plan}>{plan}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Status</label>
-                      <select value={newOrg.status} onChange={(e) => setNewOrg({...newOrg, status: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
-                        <option>Active</option><option>Inactive</option>
-                      </select>
-                    </div>
+                    <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Branch Admin Name</label><input type="text" value={newOrg.adminName} onChange={(e) => setNewOrg({...newOrg, adminName: e.target.value})} placeholder="Full name" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" /></div>
+                    <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Branch Admin Email</label><input type="email" value={newOrg.adminEmail} onChange={(e) => setNewOrg({...newOrg, adminEmail: e.target.value})} placeholder="admin@organization.com" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" /></div>
+                    <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Billing Plan</label><select value={newOrg.billing_plan} onChange={(e) => setNewOrg({...newOrg, billing_plan: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">{Object.keys(BILLING_PLANS).map(plan => <option key={plan}>{plan}</option>)}</select></div>
+                    <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Status</label><select value={newOrg.status} onChange={(e) => setNewOrg({...newOrg, status: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black"><option>Active</option><option>Inactive</option></select></div>
                     <div className="col-span-2">
                       <label className="block text-xs font-semibold uppercase mb-2" style={{color: '#6B7280'}}>Level of Care</label>
                       <div className="grid grid-cols-2 gap-2">
                         {levels.map(level => (
                           <label key={level} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                            <input type="checkbox" checked={newOrg.types?.includes(level) || false}
-                              onChange={(e) => {
-                                const current = newOrg.types || [];
-                                setNewOrg({...newOrg, types: e.target.checked ? [...current, level] : current.filter(t => t !== level)});
-                              }} />
+                            <input type="checkbox" checked={newOrg.types?.includes(level) || false} onChange={(e) => { const current = newOrg.types || []; setNewOrg({...newOrg, types: e.target.checked ? [...current, level] : current.filter(t => t !== level)}); }} />
                             {level}
                           </label>
                         ))}
@@ -582,8 +547,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                   <div className="flex gap-3 mt-4">
-                    <button onClick={() => { saveOrganization(newOrg); setNewOrg({name:'',types:[],phone:'',status:'Active',adminName:'',adminEmail:'',address:'',city:'',state:'',zip:'',billing_plan:'Starter — up to 15'}); setShowAddOrg(false); }}
-                      className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>Save Organization</button>
+                    <button onClick={() => { saveOrganization(newOrg); setNewOrg({name:'',types:[],phone:'',status:'Active',adminName:'',adminEmail:'',address:'',city:'',state:'',zip:'',billing_plan:'Starter — up to 15'}); setShowAddOrg(false); }} className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>Save Organization</button>
                     <button onClick={() => setShowAddOrg(false)} className="text-sm font-semibold px-4 py-2 rounded-lg text-gray-500 bg-gray-100">Cancel</button>
                   </div>
                 </div>
@@ -593,12 +557,7 @@ export default function DashboardPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
-                      <th className="text-left pb-3">Organization</th>
-                      <th className="text-left pb-3">Plan</th>
-                      <th className="text-left pb-3">Location</th>
-                      <th className="text-left pb-3">Staff</th>
-                      <th className="text-left pb-3">Status</th>
-                      <th className="text-left pb-3">Actions</th>
+                      <th className="text-left pb-3">Organization</th><th className="text-left pb-3">Plan</th><th className="text-left pb-3">Location</th><th className="text-left pb-3">Staff</th><th className="text-left pb-3">Status</th><th className="text-left pb-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -608,7 +567,6 @@ export default function DashboardPage() {
                       const status = getOrgStatus(org);
                       const s = statusStyle(status);
                       const count = getOrgUserCount(org.id);
-                      const limit = getPlanLimit(org.billing_plan);
                       const capStatus = getOrgCapacityStatus(org);
                       return (
                         <tr key={org.id} className="border-b border-gray-50">
@@ -619,7 +577,7 @@ export default function DashboardPage() {
                             <div className="flex items-center gap-2">
                               <span className="text-gray-500">{count}</span>
                               {capStatus === 'at_limit' && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{backgroundColor: '#FEE2E2', color: '#DC2626'}}>At Limit</span>}
-                              {capStatus === 'near_limit' && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{backgroundColor: '#FEF9C3', color: '#CA8A04'}}>90%</span>}
+                              {capStatus === 'near_limit' && <span className="text-xs font-bold px-2 py.5 rounded-full" style={{backgroundColor: '#FEF9C3', color: '#CA8A04'}}>90%</span>}
                             </div>
                           </td>
                           <td className="py-3"><span className="px-2 py-1 rounded-full text-xs font-semibold" style={{backgroundColor: s.bg, color: s.color}}>{status}</span></td>
@@ -646,92 +604,128 @@ export default function DashboardPage() {
                 <button onClick={() => setShowAddTraining(true)} className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>+ Add Training</button>
               </div>
 
+              {/* Edit Training Modal */}
+              {editingTraining && (
+                <div className="fixed inset-0 z-50 overflow-y-auto" style={{backgroundColor: 'rgba(0,0,0,0.4)'}}>
+                  <div className="flex items-start justify-center min-h-screen pt-10 pb-10">
+                    <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-2xl mx-4">
+                      <h2 className="text-lg font-bold mb-6" style={{color: '#0D2035'}}>Edit Training — {editingTraining.title}</h2>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                          <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Training Name</label>
+                          <input type="text" value={editingTraining.title} onChange={(e) => setEditingTraining({...editingTraining, title: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Category</label>
+                          <select value={editingTraining.category} onChange={(e) => setEditingTraining({...editingTraining, category: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+                            <option>All Staff</option><option>Direct Service Only</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Recurrence</label>
+                          <select value={editingTraining.recurrence} onChange={(e) => setEditingTraining({...editingTraining, recurrence: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
+                            <option>New Hire</option><option>Annual</option><option>New Hire + Annual</option>
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Description</label>
+                          <textarea value={editingTraining.description || ''} onChange={(e) => setEditingTraining({...editingTraining, description: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" rows={2} />
+                        </div>
+
+                        <div className="col-span-2 mt-2">
+                          <p className="text-xs font-bold uppercase mb-3" style={{color: '#0D9488'}}>Training Content</p>
+                          <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Content Type</label>
+                          <select value={editingTraining.content_type || 'video'} onChange={(e) => setEditingTraining({...editingTraining, content_type: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black mb-4">
+                            <option value="video">Video</option>
+                            <option value="readable">Readable (Text + PDF)</option>
+                            <option value="both">Both (Video + Readable)</option>
+                          </select>
+                        </div>
+
+                        {(editingTraining.content_type === 'video' || editingTraining.content_type === 'both') && (
+                          <div className="col-span-2">
+                            <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>
+                              {editingTraining.video_url ? '🎬 Replace Video' : 'Upload Video'}
+                            </label>
+                            {editingTraining.video_url && (
+                              <p className="text-xs mb-2" style={{color: '#0D9488'}}>✅ Video already uploaded — upload a new one to replace it</p>
+                            )}
+                            <input type="file" accept="video/*" onChange={(e) => setEditVideoFile(e.target.files[0])} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                            {editVideoFile && <p className="text-xs mt-1" style={{color: '#0D9488'}}>✅ {editVideoFile.name}</p>}
+                          </div>
+                        )}
+
+                        {(editingTraining.content_type === 'readable' || editingTraining.content_type === 'both') && (
+                          <>
+                            <div className="col-span-2">
+                              <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Text Content</label>
+                              <textarea value={editingTraining.content_text || ''} onChange={(e) => setEditingTraining({...editingTraining, content_text: e.target.value})}
+                                placeholder="Paste or type the training content here..."
+                                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" rows={6} />
+                            </div>
+                            <div className="col-span-2">
+                              <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>
+                                {editingTraining.content_pdf_url ? '📄 Replace PDF' : 'Upload PDF (optional)'}
+                              </label>
+                              {editingTraining.content_pdf_url && (
+                                <p className="text-xs mb-2" style={{color: '#0D9488'}}>✅ PDF already uploaded — upload a new one to replace it</p>
+                              )}
+                              <input type="file" accept=".pdf" onChange={(e) => setEditPdfFile(e.target.files[0])} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                              {editPdfFile && <p className="text-xs mt-1" style={{color: '#0D9488'}}>✅ {editPdfFile.name}</p>}
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {editUploadProgress && (
+                        <div className="mt-4 rounded-lg p-3" style={{backgroundColor: '#F0FDF4'}}>
+                          <p className="text-sm font-medium" style={{color: '#16A34A'}}>⏳ {editUploadProgress}</p>
+                        </div>
+                      )}
+                      {editSaved && (
+                        <div className="mt-4 rounded-lg p-3" style={{backgroundColor: '#F0FDF4', border: '1px solid #86EFAC'}}>
+                          <p className="text-sm font-medium" style={{color: '#16A34A'}}>✅ Training saved!</p>
+                        </div>
+                      )}
+
+                      <div className="flex gap-3 mt-6">
+                        <button onClick={saveEditTraining} className="flex-1 py-2 rounded-lg text-white font-semibold text-sm" style={{backgroundColor: '#0D9488'}}>Save Changes</button>
+                        <button onClick={() => { setEditingTraining(null); setEditVideoFile(null); setEditPdfFile(null); }} className="flex-1 py-2 rounded-lg text-gray-500 bg-gray-100 font-semibold text-sm">Cancel</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {showAddTraining && (
                 <div className="bg-white rounded-xl shadow p-6 mb-6">
                   <h2 className="text-lg font-bold mb-4" style={{color: '#0D2035'}}>New Training</h2>
                   <div className="grid grid-cols-2 gap-4">
-
-                    {/* Basic Info */}
-                    <div className="col-span-2">
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Training Name</label>
-                      <input type="text" value={newTraining.title} onChange={(e) => setNewTraining({...newTraining, title: e.target.value})}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Category</label>
-                      <select value={newTraining.category} onChange={(e) => setNewTraining({...newTraining, category: e.target.value})}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
-                        <option>All Staff</option><option>Direct Service Only</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Recurrence</label>
-                      <select value={newTraining.recurrence} onChange={(e) => setNewTraining({...newTraining, recurrence: e.target.value})}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black">
-                        <option>New Hire</option><option>Annual</option><option>New Hire + Annual</option>
-                      </select>
-                    </div>
-                    <div className="col-span-2">
-                      <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Description</label>
-                      <textarea value={newTraining.description} onChange={(e) => setNewTraining({...newTraining, description: e.target.value})}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" rows={2} />
-                    </div>
-
-                    {/* Content Type */}
+                    <div className="col-span-2"><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Training Name</label><input type="text" value={newTraining.title} onChange={(e) => setNewTraining({...newTraining, title: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" /></div>
+                    <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Category</label><select value={newTraining.category} onChange={(e) => setNewTraining({...newTraining, category: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black"><option>All Staff</option><option>Direct Service Only</option></select></div>
+                    <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Recurrence</label><select value={newTraining.recurrence} onChange={(e) => setNewTraining({...newTraining, recurrence: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black"><option>New Hire</option><option>Annual</option><option>New Hire + Annual</option></select></div>
+                    <div className="col-span-2"><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Description</label><textarea value={newTraining.description} onChange={(e) => setNewTraining({...newTraining, description: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" rows={2} /></div>
                     <div className="col-span-2 mt-2">
                       <p className="text-xs font-bold uppercase mb-3" style={{color: '#0D9488'}}>Training Content</p>
                       <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Content Type</label>
-                      <select value={newTraining.content_type} onChange={(e) => setNewTraining({...newTraining, content_type: e.target.value})}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black mb-4">
-                        <option value="video">Video</option>
-                        <option value="readable">Readable (Text + PDF)</option>
-                        <option value="both">Both (Video + Readable)</option>
+                      <select value={newTraining.content_type} onChange={(e) => setNewTraining({...newTraining, content_type: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black mb-4">
+                        <option value="video">Video</option><option value="readable">Readable (Text + PDF)</option><option value="both">Both (Video + Readable)</option>
                       </select>
                     </div>
-
-                    {/* Video Upload */}
                     {(newTraining.content_type === 'video' || newTraining.content_type === 'both') && (
-                      <div className="col-span-2">
-                        <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Upload Video</label>
-                        <input type="file" accept="video/*"
-                          onChange={(e) => setVideoFile(e.target.files[0])}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                        {videoFile && <p className="text-xs mt-1" style={{color: '#0D9488'}}>✅ {videoFile.name}</p>}
-                      </div>
+                      <div className="col-span-2"><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Upload Video</label><input type="file" accept="video/*" onChange={(e) => setVideoFile(e.target.files[0])} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />{videoFile && <p className="text-xs mt-1" style={{color: '#0D9488'}}>✅ {videoFile.name}</p>}</div>
                     )}
-
-                    {/* Readable Content */}
                     {(newTraining.content_type === 'readable' || newTraining.content_type === 'both') && (
                       <>
-                        <div className="col-span-2">
-                          <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Text Content</label>
-                          <textarea value={newTraining.content_text} onChange={(e) => setNewTraining({...newTraining, content_text: e.target.value})}
-                            placeholder="Paste or type the training content here..."
-                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" rows={6} />
-                        </div>
-                        <div className="col-span-2">
-                          <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Upload PDF (optional)</label>
-                          <input type="file" accept=".pdf"
-                            onChange={(e) => setPdfFile(e.target.files[0])}
-                            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                          {pdfFile && <p className="text-xs mt-1" style={{color: '#0D9488'}}>✅ {pdfFile.name}</p>}
-                        </div>
+                        <div className="col-span-2"><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Text Content</label><textarea value={newTraining.content_text} onChange={(e) => setNewTraining({...newTraining, content_text: e.target.value})} placeholder="Paste or type the training content here..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" rows={6} /></div>
+                        <div className="col-span-2"><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Upload PDF (optional)</label><input type="file" accept=".pdf" onChange={(e) => setPdfFile(e.target.files[0])} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />{pdfFile && <p className="text-xs mt-1" style={{color: '#0D9488'}}>✅ {pdfFile.name}</p>}</div>
                       </>
                     )}
                   </div>
-
-                  {uploadProgress && (
-                    <div className="mt-4 rounded-lg p-3" style={{backgroundColor: '#F0FDF4'}}>
-                      <p className="text-sm font-medium" style={{color: '#16A34A'}}>⏳ {uploadProgress}</p>
-                    </div>
-                  )}
-
+                  {uploadProgress && <div className="mt-4 rounded-lg p-3" style={{backgroundColor: '#F0FDF4'}}><p className="text-sm font-medium" style={{color: '#16A34A'}}>⏳ {uploadProgress}</p></div>}
                   <div className="flex gap-3 mt-4">
-                    <button onClick={() => saveTraining(newTraining)}
-                      className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
-                      style={{backgroundColor: '#0D9488'}}>Save Training</button>
-                    <button onClick={() => { setShowAddTraining(false); setVideoFile(null); setPdfFile(null); }}
-                      className="text-sm font-semibold px-4 py-2 rounded-lg text-gray-500 bg-gray-100">Cancel</button>
+                    <button onClick={() => saveTraining(newTraining)} className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>Save Training</button>
+                    <button onClick={() => { setShowAddTraining(false); setVideoFile(null); setPdfFile(null); }} className="text-sm font-semibold px-4 py-2 rounded-lg text-gray-500 bg-gray-100">Cancel</button>
                   </div>
                 </div>
               )}
@@ -741,19 +735,29 @@ export default function DashboardPage() {
                   <thead>
                     <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
                       <th className="text-left pb-3">Training Name</th>
-                      <th className="text-left pb-3">Content Type</th>
+                      <th className="text-left pb-3">Content</th>
                       <th className="text-left pb-3">Category</th>
                       <th className="text-left pb-3">Recurrence</th>
                       <th className="text-left pb-3">Status</th>
+                      <th className="text-left pb-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {trainings.length === 0 ? (
-                      <tr><td colSpan="5" className="py-6 text-center" style={{color: '#6B7280'}}>No trainings yet.</td></tr>
+                      <tr><td colSpan="6" className="py-6 text-center" style={{color: '#6B7280'}}>No trainings yet.</td></tr>
                     ) : trainings.map(training => (
                       <tr key={training.id} className="border-b border-gray-50">
                         <td className="py-3 font-medium" style={{color: '#0D9488'}}>{training.title}</td>
-                        <td className="py-3 text-gray-500 capitalize">{training.content_type || '—'}</td>
+                        <td className="py-3">
+                          {training.content_type ? (
+                            <span className="px-2 py-1 rounded-full text-xs font-semibold capitalize"
+                              style={{backgroundColor: '#E0F2FE', color: '#0284C7'}}>
+                              {training.content_type}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-gray-400">No content</span>
+                          )}
+                        </td>
                         <td className="py-3 text-gray-500">{training.category}</td>
                         <td className="py-3 text-gray-500">{training.recurrence}</td>
                         <td className="py-3">
@@ -762,6 +766,13 @@ export default function DashboardPage() {
                               color: training.status === 'Active' ? '#16A34A' : '#DC2626'}}>
                             {training.status || 'Active'}
                           </span>
+                        </td>
+                        <td className="py-3">
+                          <button onClick={() => setEditingTraining({...training})}
+                            className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
+                            style={{backgroundColor: '#0D9488'}}>
+                            Edit
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -782,11 +793,7 @@ export default function DashboardPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
-                      <th className="text-left pb-3">Training</th>
-                      <th className="text-left pb-3">Organization</th>
-                      <th className="text-left pb-3">Due Date</th>
-                      <th className="text-left pb-3">Assigned At</th>
-                      <th className="text-left pb-3">Status</th>
+                      <th className="text-left pb-3">Training</th><th className="text-left pb-3">Organization</th><th className="text-left pb-3">Due Date</th><th className="text-left pb-3">Assigned At</th><th className="text-left pb-3">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -819,9 +826,7 @@ export default function DashboardPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-xs font-semibold uppercase border-b" style={{color: '#6B7280'}}>
-                      <th className="text-left pb-3">Training</th>
-                      <th className="text-left pb-3">Staff Member</th>
-                      <th className="text-left pb-3">Completed Date</th>
+                      <th className="text-left pb-3">Training</th><th className="text-left pb-3">Staff Member</th><th className="text-left pb-3">Completed Date</th>
                     </tr>
                   </thead>
                   <tbody>
