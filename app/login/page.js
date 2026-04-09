@@ -87,12 +87,25 @@ export default function LoginPage() {
             </svg>
           </div>
           <h2 className="text-xl font-bold mb-2" style={{color: '#0D2035'}}>Under Maintenance</h2>
-          <p className="text-sm mb-6" style={{color: '#6B7280'}}>
-            Impact Workforce is currently undergoing scheduled maintenance. We'll be back shortly. Thank you for your patience.
+          <p className="text-sm mb-4" style={{color: '#6B7280'}}>
+            Impact Workforce is currently undergoing scheduled maintenance. We'll be back shortly.
           </p>
-          <p className="text-xs" style={{color: '#9CA3AF'}}>
+          <p className="text-xs mb-6" style={{color: '#9CA3AF'}}>
             Questions? Contact us at <span style={{color: '#0D9488'}}>impactlearningbhs@gmail.com</span>
           </p>
+          {/* Admin bypass */}
+          {email === 'impactlearningbhs@gmail.com' && (
+            <button onClick={() => setMaintenance(false)}
+              className="text-xs font-semibold px-4 py-2 rounded-lg text-white"
+              style={{backgroundColor: '#0D2035'}}>
+              Admin Login
+            </button>
+          )}
+          {email !== 'impactlearningbhs@gmail.com' && (
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter admin email to bypass..."
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black text-center" />
+          )}
         </div>
         <div className="px-8 py-4 text-center border-t border-gray-100" style={{backgroundColor: '#FAFAFA'}}>
           <p className="text-xs" style={{color: '#9CA3AF'}}>© 2026 Impact Workforce Systems LLC</p>
