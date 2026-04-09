@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [uploadProgress, setUploadProgress] = useState('');
   const [newAssignment, setNewAssignment] = useState({training_id: '', organization_id: 'all'});
   const [assignSuccess, setAssignSuccess] = useState('');
+  const [platformSettings, setPlatformSettings] = useState({ default_due_days: 15, support_email: 'impactlearningbhs@gmail.com' });
   const [snapshot, setSnapshot] = useState({
     totalOrgs: 0, activeOrgs: 0, totalUsers: 0,
     trainingsInLibrary: 0, trainingsAssigned: 0, completionRate: 0,
@@ -56,7 +57,12 @@ export default function DashboardPage() {
   };
 
   const fetchAll = async () => {
-    await Promise.all([fetchOrganizations(), fetchTrainings(), fetchCompletions(), fetchAllUsers(), fetchAssignments()]);
+    await Promise.all([fetchOrganizations(), fetchTrainings(), fetchCompletions(), fetchAllUsers(), fetchAssignments(), fetchSettings()]);
+  };
+  
+  const fetchSettings = async () => {
+    const { data } = await supabase.from('settings').select('*').single();
+    if (data) setPlatformSettings(data);
   };
 
   const fetchOrganizations = async () => {
@@ -99,7 +105,7 @@ export default function DashboardPage() {
   const saveAssignment = async () => {
     if (!newAssignment.training_id) return;
     const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + 30);
+    dueDate.setDate(dueDate.getDate() + (platformSettings.default_due_days || 15));
     const dueDateStr = dueDate.toISOString().split('T')[0];
     const now = new Date().toISOString();
     const targetOrgs = newAssignment.organization_id === 'all' ? organizations : organizations.filter(o => o.id === newAssignment.organization_id);
@@ -346,7 +352,7 @@ export default function DashboardPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor: 'rgba(0,0,0,0.4)'}}>
                   <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
                     <h2 className="text-lg font-bold mb-1" style={{color: '#0D2035'}}>⚡ Assign Training</h2>
-                    <p className="text-sm mb-6" style={{color: '#6B7280'}}>Due date auto-set to 30 days.</p>
+                    <p className="text-sm mb-6" style={{color: '#6B7280'}}>Due date auto-set to {platformSettings.default_due_days || 15} days.</p>
                     <div className="space-y-4">
                       <div>
                         <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Select Training</label>
@@ -367,7 +373,7 @@ export default function DashboardPage() {
                       </div>
                       <div className="rounded-lg p-3" style={{backgroundColor: '#F0FDF4'}}>
                         <p className="text-xs font-semibold" style={{color: '#16A34A'}}>
-                          📅 Due date: {(() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'}); })()}
+                          📅 Due date: {(() => { const d = new Date(); d.setDate(d.getDate() + (platformSettings.default_due_days || 15)); return d.toLocaleDateString('en-US', {month: 'long', day: 'numeric', year: 'numeric'}); })()}
                         </p>
                       </div>
                       {assignSuccess && (
