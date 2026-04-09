@@ -290,6 +290,9 @@ export default function DashboardPage() {
 
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-4" style={{backgroundColor: '#0D2035'}}>
+      <div style={{backgroundColor: 'white', borderRadius: '8px', padding: '4px 10px', display: 'inline-flex', alignItems: 'center'}}>
+  <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '36px', width: 'auto', objectFit: 'contain'}} />
+</div>
 
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium text-white">Platform Admin</span>
@@ -304,7 +307,7 @@ export default function DashboardPage() {
         {/* Sidebar */}
         <div className="w-64 flex flex-col py-6 px-4 gap-1" style={{backgroundColor: '#0D2035'}}>
           <div className="px-4 mb-6 pb-6 border-b border-white/10">
-          <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '60px', width: '100%', objectFit: 'contain', objectPosition: 'left', marginBottom: '12px'}} />
+          
             <p className="text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Platform Admin</p>
             <p className="text-sm font-bold text-white">Administrator</p>
             <p className="text-xs" style={{color: '#6B7280'}}>All Organizations</p>
