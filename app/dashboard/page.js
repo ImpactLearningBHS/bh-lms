@@ -701,6 +701,7 @@ export default function DashboardPage() {
                             <div className="col-span-2"><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Training Name</label><input type="text" value={editingTraining.title} onChange={(e) => setEditingTraining({...editingTraining, title: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" /></div>
                             <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Category</label><select value={editingTraining.category} onChange={(e) => setEditingTraining({...editingTraining, category: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black"><option>All Staff</option><option>Direct Service Only</option></select></div>
                             <div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Recurrence</label><select value={editingTraining.recurrence} onChange={(e) => setEditingTraining({...editingTraining, recurrence: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black"><option>New Hire</option><option>Annual</option><option>New Hire + Annual</option></select></div>
+<div><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Status</label><select value={editingTraining.status || 'Active'} onChange={(e) => setEditingTraining({...editingTraining, status: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black"><option>Active</option><option>Inactive</option></select></div>
                             <div className="col-span-2"><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Description</label><textarea value={editingTraining.description || ''} onChange={(e) => setEditingTraining({...editingTraining, description: e.target.value})} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" rows={2} /></div>
                             <div className="col-span-2 mt-2">
                               <p className="text-xs font-bold uppercase mb-3" style={{color: '#0D9488'}}>Training Content</p>
@@ -967,8 +968,8 @@ export default function DashboardPage() {
       style={{backgroundColor: '#0D2035'}}>▶ Training</button>
     {training.has_quiz && (
       <button onClick={() => window.open(`/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`, '_blank')}
-        className="text-xs font-semibold px-3 py-1 rounded-lg"
-        style={{backgroundColor: '#F3F4F6', color: '#0D2035'}}>📝 Quiz</button>
+      className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
+      style={{backgroundColor: '#6B7280'}}>📝 Quiz</button>
     )}
   </div>
 </td>
