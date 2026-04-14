@@ -10,15 +10,8 @@ export default function TrainingDetailPage() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [quizUnlocked, setQuizUnlocked] = useState(false);
-  const [secondsRemaining, setSecondsRemaining] = useState(null);
-  const [timerStarted, setTimerStarted] = useState(false);
-  const timerRef = useRef(null);
 
-  useEffect(() => {
-    init();
-    return () => clearInterval(timerRef.current);
-  }, [id]);
+  useEffect(() => { init(); }, [id]);
 
   const init = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -38,18 +31,8 @@ export default function TrainingDetailPage() {
       .eq('id', id)
       .single();
 
-    if (trainingData) {
-      setTraining(trainingData);
-      // If no video, unlock quiz immediately
-      if (!trainingData.video_url) {
-        setQuizUnlocked(true);
-      } else {
-        const duration = trainingData.video_duration_seconds || 300;
-        setSecondsRemaining(duration);
-      }
-    }
+    if (trainingData) setTraining(trainingData);
 
-    // Check if already completed
     if (userData) {
       const { data: completion } = await supabase
         .from('training_completions')
@@ -61,28 +44,6 @@ export default function TrainingDetailPage() {
     }
 
     setLoading(false);
-  };
-
-  const startTimer = () => {
-    if (timerStarted || quizUnlocked) return;
-    setTimerStarted(true);
-    timerRef.current = setInterval(() => {
-      setSecondsRemaining(prev => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current);
-          setQuizUnlocked(true);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const formatTime = (secs) => {
-    if (!secs || secs <= 0) return null;
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
   const goToQuiz = () => {
@@ -141,49 +102,13 @@ export default function TrainingDetailPage() {
         {/* Video player */}
         {training.video_url ? (
           <div className="bg-white rounded-xl shadow overflow-hidden mb-6">
-            <div className="relative w-full" style={{ paddingTop: '56.25%' }}>
-              <iframe
-                src={training.video_url}
-                className="absolute inset-0 w-full h-full"
-                frameBorder="0"
-                allow="autoplay; fullscreen"
-                allowFullScreen
-                onLoad={startTimer}
-                title={training.title}
-              />
-            </div>
-            {/* Timer bar */}
-            {!quizUnlocked && training.has_quiz && (
-              <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#0D9488' }} />
-                  <p className="text-sm font-medium" style={{ color: '#0D2035' }}>
-                    {timerStarted
-                      ? `Quiz unlocks in ${formatTime(secondsRemaining)}`
-                      : 'Press play to begin — quiz unlocks when video completes'}
-                  </p>
-                </div>
-                {timerStarted && secondsRemaining > 0 && (
-                  <div className="w-48 h-2 rounded-full bg-gray-100 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-1000"
-                      style={{
-                        backgroundColor: '#0D9488',
-                        width: `${100 - ((secondsRemaining / (training.video_duration_seconds || 300)) * 100)}%`
-                      }}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-            {quizUnlocked && training.has_quiz && !isCompleted && (
-              <div className="px-6 py-4 border-t border-green-100 bg-green-50 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span>🎉</span>
-                  <p className="text-sm font-semibold text-green-700">Video complete — your quiz is ready!</p>
-                </div>
-              </div>
-            )}
+            <video
+              controls
+              className="w-full"
+              style={{ maxHeight: '500px', backgroundColor: '#000' }}>
+              <source src={training.video_url} type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
           </div>
         ) : (
           <div className="bg-white rounded-xl shadow p-8 mb-6 text-center">
@@ -196,14 +121,9 @@ export default function TrainingDetailPage() {
           {training.has_quiz && !isCompleted && (
             <button
               onClick={goToQuiz}
-              disabled={!quizUnlocked}
-              className="px-6 py-3 rounded-xl text-sm font-semibold text-white transition-all"
-              style={{
-                backgroundColor: quizUnlocked ? '#0D9488' : '#D1D5DB',
-                cursor: quizUnlocked ? 'pointer' : 'not-allowed',
-                opacity: quizUnlocked ? 1 : 0.7
-              }}>
-              {quizUnlocked ? '📝 Take Quiz' : '🔒 Quiz Locked'}
+              className="px-6 py-3 rounded-xl text-sm font-semibold text-white"
+              style={{ backgroundColor: '#0D9488' }}>
+              📝 Take Quiz
             </button>
           )}
           {training.has_quiz && isCompleted && (
