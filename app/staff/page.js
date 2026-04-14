@@ -268,23 +268,41 @@ export default function StaffPage() {
                       return (
                         <tr key={training.id} className="border-b border-gray-50">
                           <td className="py-3 font-medium" style={{color: '#0D2035'}}>{training.title}</td>
-                          <td className="py-3 text-gray-500">{training.category}</td>
-                          <td className="py-3 text-gray-500">{assignment?.due_date || '—'}</td>
-                          <td className="py-3">
-                            {isCompleted ? (
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                                style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}>
-                                Completed
-                              </span>
-                            ) : (
-                              <button
-                                onClick={() => window.location.href = `/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`}
-                                className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
-                                style={{backgroundColor: '#0D9488'}}>
-                                Take Quiz
-                              </button>
-                            )}
-                          </td>
+<td className="py-3 text-gray-500">{training.category}</td>
+<td className="py-3 text-gray-500">{assignment?.due_date || '—'}</td>
+<td className="py-3">
+  {isCompleted ? (
+    <div className="flex items-center gap-2">
+      <span className="px-2 py-1 rounded-full text-xs font-semibold"
+        style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}>
+        Completed
+      </span>
+      <button
+        onClick={() => window.location.href = `/branch/trainings/${training.id}`}
+        className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
+        style={{backgroundColor: '#0D2035'}}>
+        View Training
+      </button>
+    </div>
+  ) : (
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => window.location.href = `/branch/trainings/${training.id}`}
+        className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
+        style={{backgroundColor: '#0D2035'}}>
+        View Training
+      </button>
+      {training.has_quiz && (
+        <button
+          onClick={() => window.location.href = `/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`}
+          className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
+          style={{backgroundColor: '#0D9488'}}>
+          Take Quiz
+        </button>
+      )}
+    </div>
+  )}
+</td>
                         </tr>
                       );
                     })}
