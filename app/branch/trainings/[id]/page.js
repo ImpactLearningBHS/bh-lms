@@ -23,7 +23,38 @@ export default function TrainingDetailPage() {
       .eq('auth_id', user.id)
       .single();
 
-    if (userData) setCurrentUser(userData);
+      const init = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { window.location.href = '/login'; return; }
+      
+        const { data: userData } = await supabase
+          .from('users')
+          .select('*, organizations(*)')
+          .eq('auth_id', user.id)
+          .single();
+      
+        if (userData) setCurrentUser(userData);
+      
+        const { data: trainingData } = await supabase
+          .from('trainings')
+          .select('*')
+          .eq('id', id)
+          .single();
+      
+        if (trainingData) setTraining(trainingData);
+      
+        if (userData) {
+          const { data: completion } = await supabase
+            .from('training_completions')
+            .select('id')
+            .eq('user_id', userData.id)
+            .eq('training_id', id)
+            .single();
+          if (completion) setIsCompleted(true);
+        }
+      
+        setLoading(false);
+      };
 
     const { data: trainingData } = await supabase
       .from('trainings')
@@ -69,11 +100,11 @@ export default function TrainingDetailPage() {
       <div className="flex items-center justify-between px-8 py-4" style={{ backgroundColor: '#0D2035' }}>
         <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{ height: '44px', objectFit: 'contain' }} />
         <button
-          onClick={() => window.location.href = '/branch'}
-          className="text-sm font-medium px-4 py-2 rounded-lg text-white"
-          style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
-          ← Back to Trainings
-        </button>
+  onClick={() => window.location.href = currentUser?.role === 'Platform Admin' ? '/dashboard' : '/branch'}
+  className="text-sm font-medium px-4 py2 rounded-lg text-white"
+  style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
+  ← Back
+</button>
       </div>
 
       {/* Content */}
@@ -120,11 +151,11 @@ export default function TrainingDetailPage() {
         <div className="flex items-center gap-4">
           {training.has_quiz && !isCompleted && (
             <button
-              onClick={goToQuiz}
-              className="px-6 py-3 rounded-xl text-sm font-semibold text-white"
-              style={{ backgroundColor: '#0D9488' }}>
-              📝 Take Quiz
-            </button>
+            onClick={goToQuiz}
+            className="px-6 py-3 rounded-xl text-sm font-semibold text-white"
+            style={{ backgroundColor: '#0D9488' }}>
+            📝 Take Quiz
+          </button>
           )}
           {training.has_quiz && isCompleted && (
             <button
