@@ -180,7 +180,7 @@ export default function StaffPage() {
 
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-4" style={{backgroundColor: '#0D2035'}}>
-        <img src="/ImpactWorkforce.png" alt="Impact Workforce" className="h-10" />
+      <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '44px', width: 'auto', objectFit: 'contain'}} />
         <div className="flex items-center gap-4">
           <span className="text-sm font-medium text-white">{currentUser?.full_name}</span>
           <button onClick={() => window.location.href = '/login'}

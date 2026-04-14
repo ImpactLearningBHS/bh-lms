@@ -116,7 +116,7 @@ export default function QuizPage() {
       {/* Header */}
       <div style={{backgroundColor: '#0D2035'}}>
         <div className="max-w-4xl mx-auto px-8 py-4 flex items-center justify-between">
-          <img src="/ImpactWorkforce.png" alt="Impact Workforce" className="h-10" />
+        <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '44px', width: 'auto', objectFit: 'contain'}} />
           <button onClick={() => window.location.href = '/staff'}
             className="text-sm font-medium px-4 py-2 rounded-lg text-white"
             style={{backgroundColor: '#0D9488'}}>

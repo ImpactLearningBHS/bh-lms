@@ -477,23 +477,43 @@ export default function BranchPage() {
                       const assignment = assignments.find(a => a.training_id === training.id);
                       return (
                         <tr key={training.id} className="border-b border-gray-50">
-                          <td className="py-3 font-medium" style={{color: '#0D9488'}}>{training.title}</td>
-                          <td className="py-3 text-gray-500">{training.category}</td>
-                          <td className="py-3 text-gray-500">{training.recurrence}</td>
-                          <td className="py-3">
-                            {isCompleted ? (
-                              <span className="px-2 py-1 rounded-full text-xs font-semibold"
-                                style={{backgroundColor: '#DCFCE7', color: '#16A34A'}}>Completed</span>
-                            ) : (
-                              <div className="flex items-center gap-2">
-                                <button onClick={() => window.location.href = `/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`}
-                                  className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
-                                  style={{backgroundColor: '#0D9488'}}>Take Quiz</button>
-                                {assignment?.due_date && <span className="text-xs" style={{color: '#6B7280'}}>Due {assignment.due_date}</span>}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
+  <td className="py-3 font-medium">
+    <button
+      onClick={() => window.location.href = `/branch/trainings/${training.id}`}
+      className="font-medium hover:underline text-left"
+      style={{ color: '#0D9488' }}>
+      {training.title}
+    </button>
+  </td>
+  <td className="py-3 text-gray-500">{training.category}</td>
+  <td className="py-3 text-gray-500">{training.recurrence}</td>
+  <td className="py-3">
+    {isCompleted ? (
+      <span className="px-2 py-1 rounded-full text-xs font-semibold"
+        style={{ backgroundColor: '#DCFCE7', color: '#16A34A' }}>Completed</span>
+    ) : (
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => window.location.href = `/branch/trainings/${training.id}`}
+          className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
+          style={{ backgroundColor: '#0D2035' }}>
+          Watch Training
+        </button>
+        {training.has_quiz && (
+          <button
+            onClick={() => window.location.href = `/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`}
+            className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
+            style={{ backgroundColor: '#0D9488' }}>
+            Take Quiz
+          </button>
+        )}
+        {assignment?.due_date && (
+          <span className="text-xs" style={{ color: '#6B7280' }}>Due {assignment.due_date}</span>
+        )}
+      </div>
+    )}
+  </td>
+</tr>
                       );
                     })}
                   </tbody>

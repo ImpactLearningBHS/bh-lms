@@ -215,43 +215,12 @@ export default function DashboardPage() {
     setGeneratedQuestions([]);
 
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
+      const response = await fetch('/api/generate-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{
-            role: 'user',
-            content: `You are a behavioral health training quiz writer. Based on the following training content, generate exactly 6 multiple choice quiz questions. Each question must have exactly 4 answer choices, with only one correct answer.
-
-Return ONLY valid JSON in this exact format, no other text:
-{
-  "questions": [
-    {
-      "question": "Question text here?",
-      "answers": [
-        {"text": "Answer A", "correct": true},
-        {"text": "Answer B", "correct": false},
-        {"text": "Answer C", "correct": false},
-        {"text": "Answer D", "correct": false}
-      ]
-    }
-  ]
-}
-
-Training Title: ${editingTraining.title}
-
-Training Content:
-${content.substring(0, 4000)}`
-          }]
-        })
+        body: JSON.stringify({ title: editingTraining.title, content })
       });
-
-      const data = await response.json();
-      const text = data.content?.map(c => c.text || '').join('');
-      const clean = text.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
+      const parsed = await response.json();
       setGeneratedQuestions(parsed.questions || []);
     } catch (err) {
       console.error('Question generation error:', err);
@@ -365,6 +334,7 @@ ${content.substring(0, 4000)}`
       recurrence: editingTraining.recurrence, description: editingTraining.description,
       status: editingTraining.status, content_type: editingTraining.content_type,
       content_text: editingTraining.content_text || null,
+      video_url: editingTraining.video_url || null,
     };
 
     if (editVideoFile) {
@@ -733,13 +703,22 @@ ${content.substring(0, 4000)}`
                               </select>
                             </div>
                             {(editingTraining.content_type === 'video' || editingTraining.content_type === 'both') && (
-                              <div className="col-span-2">
-                                <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>{editingTraining.video_url ? '🎬 Replace Video' : 'Upload Video'}</label>
-                                {editingTraining.video_url && <p className="text-xs mb-2" style={{color: '#0D9488'}}>✅ Video already uploaded</p>}
-                                <input type="file" accept="video/*" onChange={(e) => setEditVideoFile(e.target.files[0])} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                                {editVideoFile && <p className="text-xs mt-1" style={{color: '#0D9488'}}>✅ {editVideoFile.name}</p>}
-                              </div>
-                            )}
+  <div className="col-span-2">
+    <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>
+      Colossyan Video URL
+    </label>
+    <input
+      type="text"
+      value={editingTraining.video_url || ''}
+      onChange={(e) => setEditingTraining({...editingTraining, video_url: e.target.value})}
+      placeholder="Paste your Colossyan share/embed link here..."
+      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black"
+    />
+    {editingTraining.video_url && (
+      <p className="text-xs mt-1" style={{color: '#0D9488'}}>✅ Video URL saved</p>
+    )}
+  </div>
+)}
                             {(editingTraining.content_type === 'readable' || editingTraining.content_type === 'both') && (
                               <>
                                 <div className="col-span-2"><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Text Content</label><textarea value={editingTraining.content_text || ''} onChange={(e) => setEditingTraining({...editingTraining, content_text: e.target.value})} placeholder="Paste or type the training content here..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" rows={8} /></div>
