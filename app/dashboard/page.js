@@ -46,7 +46,7 @@ export default function DashboardPage() {
   const [editPdfFile, setEditPdfFile] = useState(null);
   const [editUploadProgress, setEditUploadProgress] = useState('');
   const [editSaved, setEditSaved] = useState(false);
-  const [editTab, setEditTab] = useState('content'); // 'content' | 'questions'
+  const [editTab, setEditTab] = useState('content');
 
   // Quiz question state
   const [generatedQuestions, setGeneratedQuestions] = useState([]);
@@ -54,6 +54,9 @@ export default function DashboardPage() {
   const [generatingQuestions, setGeneratingQuestions] = useState(false);
   const [savingQuestions, setSavingQuestions] = useState(false);
   const [questionsSaved, setQuestionsSaved] = useState(false);
+  const [questionCount, setQuestionCount] = useState(5);
+  const [manualMode, setManualMode] = useState(false);
+  const [manualQuestions, setManualQuestions] = useState([]);
 
   const [snapshot, setSnapshot] = useState({
     totalOrgs: 0, activeOrgs: 0, totalUsers: 0,
@@ -202,6 +205,8 @@ export default function DashboardPage() {
     setEditTab('content');
     setGeneratedQuestions([]);
     setQuestionsSaved(false);
+    setManualMode(false);
+    setManualQuestions([]);
     fetchExistingQuestions(training.id);
   };
 
@@ -213,12 +218,11 @@ export default function DashboardPage() {
     }
     setGeneratingQuestions(true);
     setGeneratedQuestions([]);
-
     try {
       const response = await fetch('/api/generate-questions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: editingTraining.title, content })
+        body: JSON.stringify({ title: editingTraining.title, content, count: questionCount })
       });
       const parsed = await response.json();
       setGeneratedQuestions(parsed.questions || []);
@@ -229,40 +233,36 @@ export default function DashboardPage() {
     setGeneratingQuestions(false);
   };
 
-  const saveQuestions = async () => {
-    if (generatedQuestions.length === 0) return;
+  const saveQuestions = async (questionsToSave) => {
+    if (!questionsToSave || questionsToSave.length === 0) return;
     setSavingQuestions(true);
-
-    // Delete existing questions for this training first
     const { data: existingQs } = await supabase.from('questions').select('id').eq('training_id', editingTraining.id);
     if (existingQs?.length > 0) {
       const ids = existingQs.map(q => q.id);
       await supabase.from('answers').delete().in('question_id', ids);
       await supabase.from('questions').delete().eq('training_id', editingTraining.id);
     }
-
-    // Insert new questions and answers
-    for (const q of generatedQuestions) {
+    for (const q of questionsToSave) {
       const { data: qData } = await supabase.from('questions').insert([{
         training_id: editingTraining.id,
         question: q.question
       }]).select().single();
-
       if (qData) {
         await supabase.from('answers').insert(
           q.answers.map(a => ({
             question_id: qData.id,
-            answer_text: a.text,
-            is_correct: a.correct
+            answer_text: a.text || a.answer_text,
+            is_correct: a.correct !== undefined ? a.correct : a.is_correct
           }))
         );
       }
     }
-
     await fetchExistingQuestions(editingTraining.id);
     setSavingQuestions(false);
     setQuestionsSaved(true);
     setGeneratedQuestions([]);
+    setManualQuestions([]);
+    setManualMode(false);
     setTimeout(() => setQuestionsSaved(false), 3000);
   };
 
@@ -380,6 +380,16 @@ export default function DashboardPage() {
       }
     }
   };
+
+  const emptyManualQuestion = () => ({
+    question: '',
+    answers: [
+      { text: '', correct: true },
+      { text: '', correct: false },
+      { text: '', correct: false },
+      { text: '', correct: false },
+    ]
+  });
 
   const navItems = [
     { id: 'dashboard', label: 'Admin Dashboard' },
@@ -666,11 +676,8 @@ export default function DashboardPage() {
                   <div className="flex items-start justify-center min-h-screen pt-10 pb-10">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl mx-4">
 
-                      {/* Modal Header */}
                       <div className="px-8 pt-8 pb-0">
                         <h2 className="text-lg font-bold mb-4" style={{color: '#0D2035'}}>Edit Training — {editingTraining.title}</h2>
-
-                        {/* Tabs */}
                         <div className="flex gap-1 border-b border-gray-200">
                           {['content', 'questions'].map(tab => (
                             <button key={tab} onClick={() => setEditTab(tab)}
@@ -703,22 +710,12 @@ export default function DashboardPage() {
                               </select>
                             </div>
                             {(editingTraining.content_type === 'video' || editingTraining.content_type === 'both') && (
-  <div className="col-span-2">
-    <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>
-      Colossyan Video URL
-    </label>
-    <input
-      type="text"
-      value={editingTraining.video_url || ''}
-      onChange={(e) => setEditingTraining({...editingTraining, video_url: e.target.value})}
-      placeholder="Paste your Colossyan share/embed link here..."
-      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black"
-    />
-    {editingTraining.video_url && (
-      <p className="text-xs mt-1" style={{color: '#0D9488'}}>✅ Video URL saved</p>
-    )}
-  </div>
-)}
+                              <div className="col-span-2">
+                                <label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Video URL</label>
+                                <input type="text" value={editingTraining.video_url || ''} onChange={(e) => setEditingTraining({...editingTraining, video_url: e.target.value})} placeholder="Paste Supabase or video URL here..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                                {editingTraining.video_url && <p className="text-xs mt-1" style={{color: '#0D9488'}}>✅ Video URL saved</p>}
+                              </div>
+                            )}
                             {(editingTraining.content_type === 'readable' || editingTraining.content_type === 'both') && (
                               <>
                                 <div className="col-span-2"><label className="block text-xs font-semibold uppercase mb-1" style={{color: '#6B7280'}}>Text Content</label><textarea value={editingTraining.content_text || ''} onChange={(e) => setEditingTraining({...editingTraining, content_text: e.target.value})} placeholder="Paste or type the training content here..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" rows={8} /></div>
@@ -738,67 +735,144 @@ export default function DashboardPage() {
                         {/* ── QUESTIONS TAB ── */}
                         {editTab === 'questions' && (
                           <div>
-                            {/* Generate button */}
-                            <div className="flex items-center justify-between mb-6">
-                              <div>
-                                <p className="text-sm font-semibold" style={{color: '#0D2035'}}>AI Question Generator</p>
-                                <p className="text-xs mt-0.5" style={{color: '#6B7280'}}>Automatically generate quiz questions from the training content</p>
-                              </div>
-                              <button onClick={generateQuestions} disabled={generatingQuestions}
-                                className="text-sm font-semibold px-4 py-2 rounded-lg text-white flex items-center gap-2"
-                                style={{backgroundColor: generatingQuestions ? '#6B7280' : '#0D9488'}}>
-                                {generatingQuestions ? '⏳ Generating...' : '✨ Generate Questions'}
+
+                            {/* Mode toggle */}
+                            <div className="flex gap-2 mb-6">
+                              <button onClick={() => setManualMode(false)}
+                                className="flex-1 py-2 rounded-lg text-sm font-semibold border transition-colors"
+                                style={{backgroundColor: !manualMode ? '#0D2035' : 'white', color: !manualMode ? 'white' : '#6B7280', borderColor: !manualMode ? '#0D2035' : '#E5E7EB'}}>
+                                ✨ AI Generate
+                              </button>
+                              <button onClick={() => { setManualMode(true); if (manualQuestions.length === 0) setManualQuestions([emptyManualQuestion()]); }}
+                                className="flex-1 py-2 rounded-lg text-sm font-semibold border transition-colors"
+                                style={{backgroundColor: manualMode ? '#0D2035' : 'white', color: manualMode ? 'white' : '#6B7280', borderColor: manualMode ? '#0D2035' : '#E5E7EB'}}>
+                                ✏️ Manual Entry
                               </button>
                             </div>
 
-                            {/* Existing questions */}
-                            {existingQuestions.length > 0 && generatedQuestions.length === 0 && (
-                              <div className="mb-6">
-                                <p className="text-xs font-bold uppercase mb-3" style={{color: '#6B7280'}}>Current Questions ({existingQuestions.length})</p>
-                                <div className="space-y-3">
-                                  {existingQuestions.map((q, i) => (
-                                    <div key={q.id} className="rounded-lg p-4" style={{backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB'}}>
-                                      <p className="text-sm font-semibold mb-2" style={{color: '#0D2035'}}>{i + 1}. {q.question}</p>
-                                      <div className="space-y-1">
-                                        {q.answers?.map(a => (
-                                          <p key={a.id} className="text-xs flex items-center gap-2" style={{color: a.is_correct ? '#16A34A' : '#6B7280'}}>
-                                            <span>{a.is_correct ? '✅' : '○'}</span> {a.answer_text}
-                                          </p>
-                                        ))}
-                                      </div>
+                            {/* ── AI MODE ── */}
+                            {!manualMode && (
+                              <div>
+                                <div className="flex items-center justify-between mb-6">
+                                  <div>
+                                    <p className="text-sm font-semibold" style={{color: '#0D2035'}}>AI Question Generator</p>
+                                    <p className="text-xs mt-0.5" style={{color: '#6B7280'}}>Generate quiz questions from the training content</p>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-2">
+                                      <label className="text-xs font-semibold uppercase" style={{color: '#6B7280'}}>Questions</label>
+                                      <select value={questionCount} onChange={(e) => setQuestionCount(Number(e.target.value))} className="border border-gray-200 rounded-lg px-2 py-1 text-sm text-black">
+                                        {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n}</option>)}
+                                      </select>
                                     </div>
-                                  ))}
+                                    <button onClick={generateQuestions} disabled={generatingQuestions}
+                                      className="text-sm font-semibold px-4 py-2 rounded-lg text-white"
+                                      style={{backgroundColor: generatingQuestions ? '#6B7280' : '#0D9488'}}>
+                                      {generatingQuestions ? '⏳ Generating...' : '✨ Generate'}
+                                    </button>
+                                  </div>
                                 </div>
-                                <p className="text-xs mt-3" style={{color: '#6B7280'}}>Click "Generate Questions" to replace these with new AI-generated questions.</p>
+
+                                {existingQuestions.length > 0 && generatedQuestions.length === 0 && (
+                                  <div className="mb-6">
+                                    <p className="text-xs font-bold uppercase mb-3" style={{color: '#6B7280'}}>Current Questions ({existingQuestions.length})</p>
+                                    <div className="space-y-3">
+                                      {existingQuestions.map((q, i) => (
+                                        <div key={q.id} className="rounded-lg p-4" style={{backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB'}}>
+                                          <p className="text-sm font-semibold mb-2" style={{color: '#0D2035'}}>{i + 1}. {q.question}</p>
+                                          <div className="space-y-1">
+                                            {q.answers?.map(a => (
+                                              <p key={a.id} className="text-xs flex items-center gap-2" style={{color: a.is_correct ? '#16A34A' : '#6B7280'}}>
+                                                <span>{a.is_correct ? '✅' : '○'}</span> {a.answer_text}
+                                              </p>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <p className="text-xs mt-3" style={{color: '#6B7280'}}>Click Generate to replace these with new AI-generated questions.</p>
+                                  </div>
+                                )}
+
+                                {generatedQuestions.length > 0 && (
+                                  <div>
+                                    <div className="flex items-center justify-between mb-3">
+                                      <p className="text-xs font-bold uppercase" style={{color: '#6B7280'}}>Review & Edit</p>
+                                      <p className="text-xs" style={{color: '#6B7280'}}>{generatedQuestions.length} questions</p>
+                                    </div>
+                                    <div className="space-y-4 mb-6">
+                                      {generatedQuestions.map((q, qIndex) => (
+                                        <div key={qIndex} className="rounded-xl p-4" style={{backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB'}}>
+                                          <div className="flex items-start gap-3 mb-3">
+                                            <span className="text-xs font-bold mt-2 flex-shrink-0" style={{color: '#0D9488'}}>{qIndex + 1}.</span>
+                                            <input type="text" value={q.question} onChange={(e) => updateGeneratedQuestion(qIndex, 'question', e.target.value)} className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
+                                            <button onClick={() => removeGeneratedQuestion(qIndex)} className="text-xs px-2 py-1 rounded text-red-500 hover:bg-red-50 flex-shrink-0">✕</button>
+                                          </div>
+                                          <div className="space-y-2 ml-5">
+                                            {q.answers.map((a, aIndex) => (
+                                              <div key={aIndex} className="flex items-center gap-2">
+                                                <input type="radio" name={`correct-${qIndex}`} checked={a.correct} onChange={() => updateGeneratedAnswer(qIndex, aIndex, 'correct', true)} style={{accentColor: '#0D9488'}} />
+                                                <input type="text" value={a.text} onChange={(e) => updateGeneratedAnswer(qIndex, aIndex, 'text', e.target.value)} className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-black" style={{borderColor: a.correct ? '#0D9488' : undefined}} />
+                                                {a.correct && <span className="text-xs font-semibold" style={{color: '#16A34A'}}>✓ Correct</span>}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {questionsSaved && <div className="rounded-lg p-3 mb-4" style={{backgroundColor: '#F0FDF4', border: '1px solid #86EFAC'}}><p className="text-sm font-medium" style={{color: '#16A34A'}}>✅ Questions saved successfully!</p></div>}
+                                    <button onClick={() => saveQuestions(generatedQuestions)} disabled={savingQuestions} className="w-full py-2 rounded-lg text-white font-semibold text-sm" style={{backgroundColor: savingQuestions ? '#6B7280' : '#0D2035'}}>
+                                      {savingQuestions ? 'Saving...' : `Save ${generatedQuestions.length} Questions to Quiz`}
+                                    </button>
+                                  </div>
+                                )}
+
+                                {existingQuestions.length === 0 && generatedQuestions.length === 0 && !generatingQuestions && (
+                                  <div className="text-center py-8 rounded-xl" style={{backgroundColor: '#F9FAFB', border: '1px dashed #D1D5DB'}}>
+                                    <p className="text-sm font-medium mb-1" style={{color: '#0D2035'}}>No quiz questions yet</p>
+                                    <p className="text-xs" style={{color: '#6B7280'}}>Select how many questions, then click Generate</p>
+                                  </div>
+                                )}
                               </div>
                             )}
 
-                            {/* Generated questions for review */}
-                            {generatedQuestions.length > 0 && (
+                            {/* ── MANUAL MODE ── */}
+                            {manualMode && (
                               <div>
-                                <div className="flex items-center justify-between mb-3">
-                                  <p className="text-xs font-bold uppercase" style={{color: '#6B7280'}}>Review & Edit Generated Questions</p>
-                                  <p className="text-xs" style={{color: '#6B7280'}}>{generatedQuestions.length} questions</p>
-                                </div>
-                                <div className="space-y-4 mb-6">
-                                  {generatedQuestions.map((q, qIndex) => (
+                                <div className="space-y-4 mb-4">
+                                  {manualQuestions.map((q, qIndex) => (
                                     <div key={qIndex} className="rounded-xl p-4" style={{backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB'}}>
                                       <div className="flex items-start gap-3 mb-3">
                                         <span className="text-xs font-bold mt-2 flex-shrink-0" style={{color: '#0D9488'}}>{qIndex + 1}.</span>
                                         <input type="text" value={q.question}
-                                          onChange={(e) => updateGeneratedQuestion(qIndex, 'question', e.target.value)}
+                                          onChange={(e) => {
+                                            const updated = [...manualQuestions];
+                                            updated[qIndex] = {...updated[qIndex], question: e.target.value};
+                                            setManualQuestions(updated);
+                                          }}
+                                          placeholder="Enter your question..."
                                           className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm text-black" />
-                                        <button onClick={() => removeGeneratedQuestion(qIndex)}
-                                          className="text-xs px-2 py-1 rounded text-red-500 hover:bg-red-50 flex-shrink-0">✕</button>
+                                        {manualQuestions.length > 1 && (
+                                          <button onClick={() => setManualQuestions(manualQuestions.filter((_, i) => i !== qIndex))} className="text-xs px-2 py-1 rounded text-red-500 hover:bg-red-50">✕</button>
+                                        )}
                                       </div>
                                       <div className="space-y-2 ml-5">
                                         {q.answers.map((a, aIndex) => (
                                           <div key={aIndex} className="flex items-center gap-2">
-                                            <input type="radio" name={`correct-${qIndex}`} checked={a.correct}
-                                              onChange={() => updateGeneratedAnswer(qIndex, aIndex, 'correct', true)}
+                                            <input type="radio" name={`manual-correct-${qIndex}`} checked={a.correct}
+                                              onChange={() => {
+                                                const updated = [...manualQuestions];
+                                                updated[qIndex].answers = updated[qIndex].answers.map((ans, i) => ({...ans, correct: i === aIndex}));
+                                                setManualQuestions(updated);
+                                              }}
                                               style={{accentColor: '#0D9488'}} />
                                             <input type="text" value={a.text}
-                                              onChange={(e) => updateGeneratedAnswer(qIndex, aIndex, 'text', e.target.value)}
+                                              onChange={(e) => {
+                                                const updated = [...manualQuestions];
+                                                updated[qIndex].answers[aIndex] = {...updated[qIndex].answers[aIndex], text: e.target.value};
+                                                setManualQuestions(updated);
+                                              }}
+                                              placeholder={`Answer ${aIndex + 1}...`}
                                               className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-black"
                                               style={{borderColor: a.correct ? '#0D9488' : undefined}} />
                                             {a.correct && <span className="text-xs font-semibold" style={{color: '#16A34A'}}>✓ Correct</span>}
@@ -808,37 +882,29 @@ export default function DashboardPage() {
                                     </div>
                                   ))}
                                 </div>
-
-                                {questionsSaved && (
-                                  <div className="rounded-lg p-3 mb-4" style={{backgroundColor: '#F0FDF4', border: '1px solid #86EFAC'}}>
-                                    <p className="text-sm font-medium" style={{color: '#16A34A'}}>✅ Questions saved successfully!</p>
-                                  </div>
-                                )}
-
-                                <button onClick={saveQuestions} disabled={savingQuestions}
+                                <button onClick={() => setManualQuestions([...manualQuestions, emptyManualQuestion()])}
+                                  className="w-full py-2 rounded-lg text-sm font-semibold mb-4"
+                                  style={{backgroundColor: '#F3F4F6', color: '#0D2035', border: '1px dashed #D1D5DB'}}>
+                                  + Add Another Question
+                                </button>
+                                {questionsSaved && <div className="rounded-lg p-3 mb-4" style={{backgroundColor: '#F0FDF4', border: '1px solid #86EFAC'}}><p className="text-sm font-medium" style={{color: '#16A34A'}}>✅ Questions saved successfully!</p></div>}
+                                <button onClick={() => saveQuestions(manualQuestions.filter(q => q.question.trim()))} disabled={savingQuestions}
                                   className="w-full py-2 rounded-lg text-white font-semibold text-sm"
                                   style={{backgroundColor: savingQuestions ? '#6B7280' : '#0D2035'}}>
-                                  {savingQuestions ? 'Saving...' : `Save ${generatedQuestions.length} Questions to Quiz`}
+                                  {savingQuestions ? 'Saving...' : `Save ${manualQuestions.filter(q => q.question.trim()).length} Questions to Quiz`}
                                 </button>
                               </div>
                             )}
 
-                            {existingQuestions.length === 0 && generatedQuestions.length === 0 && !generatingQuestions && (
-                              <div className="text-center py-8 rounded-xl" style={{backgroundColor: '#F9FAFB', border: '1px dashed #D1D5DB'}}>
-                                <p className="text-sm font-medium mb-1" style={{color: '#0D2035'}}>No quiz questions yet</p>
-                                <p className="text-xs" style={{color: '#6B7280'}}>Click "Generate Questions" to create questions from the training content</p>
-                              </div>
-                            )}
                           </div>
                         )}
                       </div>
 
-                      {/* Modal Footer */}
                       <div className="px-8 pb-8 flex gap-3">
                         {editTab === 'content' && (
                           <button onClick={saveEditTraining} className="flex-1 py-2 rounded-lg text-white font-semibold text-sm" style={{backgroundColor: '#0D9488'}}>Save Changes</button>
                         )}
-                        <button onClick={() => { setEditingTraining(null); setEditVideoFile(null); setEditPdfFile(null); setGeneratedQuestions([]); }}
+                        <button onClick={() => { setEditingTraining(null); setEditVideoFile(null); setEditPdfFile(null); setGeneratedQuestions([]); setManualQuestions([]); setManualMode(false); }}
                           className="flex-1 py-2 rounded-lg text-gray-500 bg-gray-100 font-semibold text-sm">Close</button>
                       </div>
                     </div>
