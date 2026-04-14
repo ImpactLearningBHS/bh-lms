@@ -23,38 +23,7 @@ export default function TrainingDetailPage() {
       .eq('auth_id', user.id)
       .single();
 
-      const init = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { window.location.href = '/login'; return; }
-      
-        const { data: userData } = await supabase
-          .from('users')
-          .select('*, organizations(*)')
-          .eq('auth_id', user.id)
-          .single();
-      
-        if (userData) setCurrentUser(userData);
-      
-        const { data: trainingData } = await supabase
-          .from('trainings')
-          .select('*')
-          .eq('id', id)
-          .single();
-      
-        if (trainingData) setTraining(trainingData);
-      
-        if (userData) {
-          const { data: completion } = await supabase
-            .from('training_completions')
-            .select('id')
-            .eq('user_id', userData.id)
-            .eq('training_id', id)
-            .single();
-          if (completion) setIsCompleted(true);
-        }
-      
-        setLoading(false);
-      };
+    if (userData) setCurrentUser(userData);
 
     const { data: trainingData } = await supabase
       .from('trainings')
@@ -81,6 +50,8 @@ export default function TrainingDetailPage() {
     window.location.href = `/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`;
   };
 
+  const isPlatformAdmin = currentUser?.role === 'Platform Admin' || currentUser?.email === 'impactlearningbhs@gmail.com';
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#F9FAFB' }}>
       <p className="text-gray-400 text-sm">Loading training...</p>
@@ -100,12 +71,19 @@ export default function TrainingDetailPage() {
       <div className="flex items-center justify-between px-8 py-4" style={{ backgroundColor: '#0D2035' }}>
         <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{ height: '44px', objectFit: 'contain' }} />
         <button
-  onClick={() => window.location.href = currentUser?.role === 'Platform Admin' ? '/dashboard' : '/branch'}
-  className="text-sm font-medium px-4 py2 rounded-lg text-white"
-  style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
-  ← Back
-</button>
+          onClick={() => window.location.href = isPlatformAdmin ? '/dashboard' : '/branch'}
+          className="text-sm font-medium px-4 py-2 rounded-lg text-white"
+          style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
+          ← Back
+        </button>
       </div>
+
+      {/* Platform admin preview banner */}
+      {isPlatformAdmin && (
+        <div className="px-8 py-2 text-xs font-semibold text-center" style={{ backgroundColor: '#7C3AED', color: 'white' }}>
+          👁 Platform Admin Preview Mode
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 max-w-4xl mx-auto w-full px-6 py-10">
@@ -151,11 +129,11 @@ export default function TrainingDetailPage() {
         <div className="flex items-center gap-4">
           {training.has_quiz && !isCompleted && (
             <button
-            onClick={goToQuiz}
-            className="px-6 py-3 rounded-xl text-sm font-semibold text-white"
-            style={{ backgroundColor: '#0D9488' }}>
-            📝 Take Quiz
-          </button>
+              onClick={goToQuiz}
+              className="px-6 py-3 rounded-xl text-sm font-semibold text-white"
+              style={{ backgroundColor: '#0D9488' }}>
+              📝 Take Quiz
+            </button>
           )}
           {training.has_quiz && isCompleted && (
             <button
@@ -166,7 +144,7 @@ export default function TrainingDetailPage() {
             </button>
           )}
           <button
-            onClick={() => window.location.href = '/branch'}
+            onClick={() => window.location.href = isPlatformAdmin ? '/dashboard' : '/branch'}
             className="px-6 py-3 rounded-xl text-sm font-semibold"
             style={{ backgroundColor: '#F3F4F6', color: '#6B7280' }}>
             ← Back
