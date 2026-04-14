@@ -33,7 +33,9 @@ export default function TrainingDetailPage() {
 
     if (trainingData) setTraining(trainingData);
 
-    if (userData) {
+    // Only check completion for non-admin users
+    const isAdmin = userData?.role === 'Platform Admin' || userData?.email === 'impactlearningbhs@gmail.com';
+    if (userData && !isAdmin) {
       const { data: completion } = await supabase
         .from('training_completions')
         .select('id')
@@ -97,45 +99,76 @@ export default function TrainingDetailPage() {
           <p className="text-sm" style={{ color: '#6B7280' }}>Recurrence: {training.recurrence}</p>
         </div>
 
-        {/* Completed banner */}
-        {isCompleted && (
+        {/* Completed banner — only for non-admin users */}
+        {isCompleted && !isPlatformAdmin && (
           <div className="rounded-xl border border-green-200 bg-green-50 p-4 mb-6 flex items-center gap-3">
             <span className="text-xl">✅</span>
             <div>
               <p className="text-sm font-bold text-green-700">Training Completed</p>
-              <p className="text-sm text-green-600">You have already completed this training. You may rewatch the video below.</p>
+              <p className="text-sm text-green-600">You have already completed this training. You may review the content below.</p>
             </div>
           </div>
         )}
 
-        {/* Video player */}
-        {training.video_url ? (
-          <div className="bg-white rounded-xl shadow overflow-hidden mb-6">
-            <video
-              controls
-              className="w-full"
-              style={{ maxHeight: '500px', backgroundColor: '#000' }}>
-              <source src={training.video_url} type="video/mp4" />
-              Your browser does not support the video tag.
-            </video>
+        {/* Video content */}
+        {(training.content_type === 'video' || training.content_type === 'both') && (
+          training.video_url ? (
+            <div className="bg-white rounded-xl shadow overflow-hidden mb-6">
+              <video
+                controls
+                className="w-full"
+                style={{ maxHeight: '500px', backgroundColor: '#000' }}>
+                <source src={training.video_url} type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow p-8 mb-6 text-center">
+              <p className="text-sm" style={{ color: '#6B7280' }}>No video available for this training yet.</p>
+            </div>
+          )
+        )}
+
+        {/* Readable content */}
+        {(training.content_type === 'readable' || training.content_type === 'both') && (
+          <div className="bg-white rounded-xl shadow p-8 mb-6">
+            {training.content_text && (
+              <div className="text-sm leading-relaxed mb-6"
+                style={{ color: '#0D2035', whiteSpace: 'pre-wrap' }}>
+                {training.content_text}
+              </div>
+            )}
+            {training.content_pdf_url && (
+              <a href={training.content_pdf_url} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white"
+                style={{ backgroundColor: '#0D2035' }}>
+                📄 Download PDF
+              </a>
+            )}
+            {!training.content_text && !training.content_pdf_url && (
+              <p className="text-sm text-center" style={{ color: '#6B7280' }}>No reading material available yet.</p>
+            )}
           </div>
-        ) : (
+        )}
+
+        {/* Fallback if no content type set */}
+        {!training.content_type && (
           <div className="bg-white rounded-xl shadow p-8 mb-6 text-center">
-            <p className="text-sm" style={{ color: '#6B7280' }}>No video available for this training yet.</p>
+            <p className="text-sm" style={{ color: '#6B7280' }}>No content available for this training yet.</p>
           </div>
         )}
 
         {/* Action buttons */}
         <div className="flex items-center gap-4">
-          {training.has_quiz && !isCompleted && (
+          {training.has_quiz && (isPlatformAdmin || !isCompleted) && (
             <button
               onClick={goToQuiz}
               className="px-6 py-3 rounded-xl text-sm font-semibold text-white"
               style={{ backgroundColor: '#0D9488' }}>
-              📝 Take Quiz
+              📝 {isPlatformAdmin ? 'Preview Quiz' : 'Take Quiz'}
             </button>
           )}
-          {training.has_quiz && isCompleted && (
+          {training.has_quiz && isCompleted && !isPlatformAdmin && (
             <button
               onClick={goToQuiz}
               className="px-6 py-3 rounded-xl text-sm font-semibold text-white"
