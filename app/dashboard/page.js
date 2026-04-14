@@ -957,7 +957,21 @@ export default function DashboardPage() {
                         <td className="py-3 text-gray-500">{training.category}</td>
                         <td className="py-3 text-gray-500">{training.recurrence}</td>
                         <td className="py-3"><span className="px-2 py-1 rounded-full text-xs font-semibold" style={{backgroundColor: training.status === 'Active' ? '#DCFCE7' : '#FEE2E2', color: training.status === 'Active' ? '#16A34A' : '#DC2626'}}>{training.status || 'Active'}</span></td>
-                        <td className="py-3"><button onClick={() => openEditModal(training)} className="text-xs font-semibold px-3 py-1 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>Edit</button></td>
+                        <td className="py-3">
+  <div className="flex gap-2">
+    <button onClick={() => openEditModal(training)}
+      className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
+      style={{backgroundColor: '#0D9488'}}>Edit</button>
+    <button onClick={() => window.open(`/branch/trainings/${training.id}`, '_blank')}
+      className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
+      style={{backgroundColor: '#0D2035'}}>▶ Training</button>
+    {training.has_quiz && (
+      <button onClick={() => window.open(`/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`, '_blank')}
+        className="text-xs font-semibold px-3 py-1 rounded-lg"
+        style={{backgroundColor: '#F3F4F6', color: '#0D2035'}}>📝 Quiz</button>
+    )}
+  </div>
+</td>
                       </tr>
                     ))}
                   </tbody>
