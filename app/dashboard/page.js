@@ -964,8 +964,8 @@ export default function DashboardPage() {
       className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
       style={{backgroundColor: '#0D9488'}}>Edit</button>
     <button onClick={() => window.open(`/branch/trainings/${training.id}`, '_blank')}
-      className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
-      style={{backgroundColor: '#0D2035'}}>▶ Training</button>
+  className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
+  style={{backgroundColor: '#0D2035'}}>View Training</button>
     {training.has_quiz && (
       <button onClick={() => window.open(`/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`, '_blank')}
       className="text-xs font-semibold px-3 py-1 rounded-lg text-white"

@@ -494,11 +494,11 @@ export default function BranchPage() {
     ) : (
       <div className="flex items-center gap-2">
         <button
-          onClick={() => window.location.href = `/branch/trainings/${training.id}`}
-          className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
-          style={{ backgroundColor: '#0D2035' }}>
-          Watch Training
-        </button>
+  onClick={() => window.location.href = `/branch/trainings/${training.id}`}
+  className="px-3 py-1 rounded-lg text-xs font-semibold text-white"
+  style={{ backgroundColor: '#0D2035' }}>
+  View Training
+</button>
         {training.has_quiz && (
           <button
             onClick={() => window.location.href = `/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`}
