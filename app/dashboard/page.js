@@ -420,15 +420,24 @@ export default function DashboardPage() {
     <div className="min-h-screen flex flex-col">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-8 py-4" style={{backgroundColor: '#0D2035'}}>
-        <div style={{backgroundColor: 'white', borderRadius: '8px', padding: '4px 10px', display: 'inline-flex', alignItems: 'center'}}>
-          <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '50px', width: 'auto', objectFit: 'contain'}} />
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="text-sm font-medium text-white">Platform Admin</span>
-          <button onClick={() => window.location.href = '/login'} className="text-sm font-medium px-4 py-2 rounded-lg text-white" style={{backgroundColor: '#0D9488'}}>Log Out</button>
-        </div>
-      </div>
+<div className="flex items-center justify-between px-6 py-0" style={{backgroundColor: '#0D2035', borderBottom: '1px solid rgba(255,255,255,0.08)', height: '52px'}}>
+  <div className="flex items-center gap-2">
+    <div style={{width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#0D9488', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 2L14 5.5V10.5L8 14L2 10.5V5.5L8 2Z" fill="white" fillOpacity="0.9"/>
+        <path d="M8 5L11 6.75V10.25L8 12L5 10.25V6.75L8 5Z" fill="#0D9488"/>
+      </svg>
+    </div>
+    <span className="font-bold text-white tracking-tight" style={{fontSize: '15px', letterSpacing: '-0.01em'}}>Impact Workforce</span>
+    <span className="text-xs font-medium px-2 py-0.5 rounded-full ml-1" style={{backgroundColor: 'rgba(13,148,136,0.2)', color: '#0D9488'}}>Admin</span>
+  </div>
+  <div className="flex items-center gap-3">
+    <span className="text-xs" style={{color: '#6B7280'}}>impactlearningbhs@gmail.com</span>
+    <button onClick={() => supabase.auth.signOut().then(() => window.location.href = '/login')} className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-opacity hover:opacity-80" style={{backgroundColor: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.12)'}}>
+      Log Out
+    </button>
+  </div>
+</div>
 
       <div className="flex flex-1">
 
