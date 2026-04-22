@@ -420,8 +420,8 @@ export default function DashboardPage() {
     <div className="min-h-screen flex flex-col">
 
  {/* Header */}
-<div className="flex items-center justify-between px-6" style={{backgroundColor: 'white', borderBottom: '1px solid rgba(0,0,0,0.08)', height: '68px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)'}}>
-  <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '48px', width: 'auto', objectFit: 'contain'}} />
+ <div className="flex items-center justify-between px-8" style={{backgroundColor: 'white', borderBottom: '1px solid rgba(0,0,0,0.08)', height: '80px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)'}}>
+ <img src="/ImpactWorkforce.svg" alt="Impact Workforce" style={{height: '60px', width: 'auto', objectFit: 'contain'}} />
   <div className="flex items-center gap-3">
     <span className="text-xs" style={{color: '#6B7280'}}>impactlearningbhs@gmail.com</span>
     <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{backgroundColor: 'rgba(13,148,136,0.12)', color: '#0D9488'}}>Admin</span>
