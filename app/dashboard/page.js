@@ -965,13 +965,24 @@ export default function DashboardPage() {
       className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
       style={{backgroundColor: '#0D9488'}}>Edit</button>
     <button onClick={() => window.open(`/branch/trainings/${training.id}`, '_blank')}
-  className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
-  style={{backgroundColor: '#0D2035'}}>View Training</button>
+      className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
+      style={{backgroundColor: '#0D2035'}}>View Training</button>
     {training.has_quiz && (
       <button onClick={() => window.open(`/quiz?training_id=${training.id}&title=${encodeURIComponent(training.title)}`, '_blank')}
-      className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
-      style={{backgroundColor: '#6B7280'}}>📝 Quiz</button>
+        className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
+        style={{backgroundColor: '#6B7280'}}>📝 Quiz</button>
     )}
+    <button onClick={async () => {
+      if (!confirm(`Delete "${training.title}"? This cannot be undone.`)) return;
+      await supabase.from('answers').delete().in('question_id',
+        (await supabase.from('questions').select('id').eq('training_id', training.id)).data?.map(q => q.id) || []
+      );
+      await supabase.from('questions').delete().eq('training_id', training.id);
+      await supabase.from('training_assignments').delete().eq('training_id', training.id);
+      await supabase.from('trainings').delete().eq('id', training.id);
+      setTrainings(trainings.filter(t => t.id !== training.id));
+    }} className="text-xs font-semibold px-3 py-1 rounded-lg text-white"
+      style={{backgroundColor: '#DC2626'}}>Delete</button>
   </div>
 </td>
                       </tr>
