@@ -168,27 +168,28 @@ export default function BranchPage() {
     <div className="min-h-screen flex flex-col">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-8 py-4" style={{backgroundColor: '#0D2035'}}>
-      <img src="/ImpactWorkforce.png" alt="Impact Workforce" style={{height: '44px', width: 'auto', objectFit: 'contain'}} />
-        <div className="flex items-center gap-4">
-          {isImpersonating && (
-            <span className="text-xs font-semibold px-3 py-1 rounded-full"
-              style={{backgroundColor: '#7C3AED', color: 'white'}}>
-              👁 Impersonating: {orgName}
-            </span>
-          )}
-          <span className="text-sm font-medium text-white">{orgName}</span>
-          {isImpersonating ? (
-            <button onClick={() => window.location.href = '/dashboard'}
-              className="text-sm font-medium px-4 py-2 rounded-lg text-white"
-              style={{backgroundColor: '#7C3AED'}}>← Exit Impersonation</button>
-          ) : (
-            <button onClick={() => window.location.href = '/login'}
-              className="text-sm font-medium px-4 py-2 rounded-lg text-white"
-              style={{backgroundColor: '#0D9488'}}>Log Out</button>
-          )}
-        </div>
-      </div>
+<div className="flex items-center justify-between px-6 py-0" style={{backgroundColor: 'white', borderBottom: '1px solid rgba(0,0,0,0.08)', height: '56px'}}>
+  <div className="flex items-center gap-2">
+    <div style={{width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#0D9488', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 2L14 5.5V10.5L8 14L2 10.5V5.5L8 2Z" fill="white" fillOpacity="0.9"/>
+        <path d="M8 5L11 6.75V10.25L8 12L5 10.25V6.75L8 5Z" fill="#0D9488"/>
+      </svg>
+    </div>
+    <span className="font-bold tracking-tight" style={{fontSize: '15px', letterSpacing: '-0.01em', color: '#0D2035'}}>Impact Workforce</span>
+    {isImpersonating && (
+      <span className="text-xs font-semibold px-3 py-1 rounded-full ml-2" style={{backgroundColor: '#7C3AED', color: 'white'}}>👁 Impersonating: {orgName}</span>
+    )}
+  </div>
+  <div className="flex items-center gap-3">
+    <span className="text-xs" style={{color: '#6B7280'}}>{orgName}</span>
+    {isImpersonating ? (
+      <button onClick={() => window.location.href = '/dashboard'} className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-opacity hover:opacity-80" style={{backgroundColor: '#7C3AED', border: 'none'}}>← Exit Impersonation</button>
+    ) : (
+      <button onClick={() => supabase.auth.signOut().then(() => window.location.href = '/login')} className="text-xs font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-80" style={{backgroundColor: '#0D2035', color: 'white', border: 'none', borderRadius: '8px'}}>Log Out</button>
+    )}
+  </div>
+</div>
 
       <div className="flex flex-1">
 
