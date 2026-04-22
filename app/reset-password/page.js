@@ -59,7 +59,7 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#0D2035'}}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
         <div className="mb-6 flex justify-center">
-          <img src="/ImpactWorkforce.png" alt="Impact Workforce" className="h-12" />
+          <img src="/ImpactWorkforce.svg" alt="Impact Workforce" className="h-12" />
         </div>
         {success ? (
           <div className="text-center">

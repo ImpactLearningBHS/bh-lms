@@ -119,7 +119,7 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
 
         <div className="px-8 py-8">
-        <div className="mb-4 pb-4 border-b border-gray-100">
+        <div className="mb-2 pb-2 border-b border-gray-100">
   <img src="/ImpactWorkforce.svg" alt="Impact Workforce"
     style={{height: '60px', display: 'block', margin: '0 auto', objectFit: 'contain', objectPosition: 'center'}} />
 </div>

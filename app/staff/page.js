@@ -120,7 +120,7 @@ export default function StaffPage() {
           </svg>
           <div class="inner-box">
             <div class="logo-area">
-              <img src="${window.location.origin}/ImpactWorkforce.png" alt="Impact Workforce" />
+              <img src="${window.location.origin}/ImpactWorkforce.svg" alt="Impact Workforce" />
             </div>
             <p class="subtitle">Certificate of Completion</p>
             <h1>Achievement Award</h1>
