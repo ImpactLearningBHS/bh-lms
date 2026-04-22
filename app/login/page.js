@@ -77,7 +77,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center" style={{backgroundColor: '#0D2035'}}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
         <div className="px-8 py-8 text-center">
-          <img src="/ImpactWorkforce.png" alt="Impact Workforce"
+          <img src="/ImpactWorkforce.svg" alt="Impact Workforce"
             style={{height: '80px', display: 'block', margin: '0 auto 24px', objectFit: 'contain'}} />
           <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
             style={{backgroundColor: '#FEF2F2'}}>
@@ -119,10 +119,10 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
 
         <div className="px-8 py-8">
-          <div className="mb-6 pb-6 border-b border-gray-100">
-            <img src="/ImpactWorkforce.png" alt="Impact Workforce"
-              style={{height: '80px', display: 'block', margin: '0 auto', objectFit: 'contain', objectPosition: 'center'}} />
-          </div>
+        <div className="mb-4 pb-4 border-b border-gray-100">
+  <img src="/ImpactWorkforce.svg" alt="Impact Workforce"
+    style={{height: '60px', display: 'block', margin: '0 auto', objectFit: 'contain', objectPosition: 'center'}} />
+</div>
           <h2 className="text-lg font-bold mb-1" style={{color: '#0D2035'}}>Welcome back</h2>
           <p className="text-sm mb-6" style={{color: '#6B7280'}}>Sign in to access your portal</p>
 
